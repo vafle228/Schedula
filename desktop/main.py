@@ -1,12 +1,11 @@
 import sys
+import threading
 from pathlib import Path
-from qtpy.QtCore import Qt
 
 import webview
-import threading
+from bottle import static_file
 
 from server.main import build_api
-from bottle import static_file
 
 api = build_api()
 
@@ -42,14 +41,6 @@ def js(filepath: str):
     return static_file(filepath, root=resource_path("client/js"))
 
 
-def lock_window(window: webview.Window) -> None:
-    pass
-    # qwin = window.native
-    # qwin.setFixedSize(qwin.size())
-    # qwin.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
-    # qwin.show()
-
-
 if __name__ == "__main__":
     server_thread = threading.Thread(
         target=api.run, daemon=True, kwargs={
@@ -60,14 +51,12 @@ if __name__ == "__main__":
         }
     )
 
+    server_thread.start()
     window = webview.create_window(
         "Schedula",
         url="http://127.0.0.1:8000/",
-        width=1440,
+        width=1640,
         height=900,
         maximized=False,
         resizable=False)
-
-    server_thread.start()
-    webview.start(lock_window, window, gui="qt")
-    server_thread.join(0)
+    webview.start(gui="qt")
