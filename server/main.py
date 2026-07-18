@@ -29,4 +29,3 @@ def build_api() -> Bottle:
 if __name__ == "__main__":
     api = build_api()
     api.run(host="127.0.0.1", port="8000", debug=True)
-

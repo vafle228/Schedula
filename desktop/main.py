@@ -1,11 +1,12 @@
 import sys
 from pathlib import Path
+from qtpy.QtCore import Qt
 
 import webview
 import threading
 
 from server.main import build_api
-from bottle import template, static_file
+from bottle import static_file
 
 api = build_api()
 
@@ -13,32 +14,40 @@ api = build_api()
 def resource_path(relative: str) -> str:
     if hasattr(sys, "_MEIPASS"):
         return str(Path(sys._MEIPASS).joinpath(relative))
-    return str(Path(relative))
+    return str(Path(__file__).resolve().parent.parent.joinpath(relative))
 
 
 @api.get("/")
 def enter_point():
-    return template(resource_path("static/index.html"))
+    return static_file("index.html", root=resource_path("client"))
 
 
-@api.get("/css/<filepath:re:.*\.css>")
+@api.get("/css/<filepath:re:.*\\.css>")
 def css(filepath: str):
-    return static_file(filepath, root=resource_path("static/css"))
+    return static_file(filepath, root=resource_path("client/css"))
 
 
 @api.get("/nullstyle.css")
 def null_style():
-    return static_file("nullstyle.css", root=resource_path("static/"))
+    return static_file("nullstyle.css", root=resource_path("client/"))
 
 
-@api.get("/fonts/<filepath:re:.*\.(eot|otf|svg|ttf|woff|woff2?)>")
+@api.get("/fonts/<filepath:re:.*\\.(eot|otf|svg|ttf|woff|woff2?)>")
 def font(filepath: str):
-    return static_file(filepath, root=resource_path("static/fonts"))
+    return static_file(filepath, root=resource_path("client/fonts"))
 
 
-@api.get("/js/<filepath:re:.*\.js>")
+@api.get("/js/<filepath:re:.*\\.js>")
 def js(filepath: str):
-    return static_file(filepath, root=resource_path("static/js"))
+    return static_file(filepath, root=resource_path("client/js"))
+
+
+def lock_window(window: webview.Window) -> None:
+    pass
+    # qwin = window.native
+    # qwin.setFixedSize(qwin.size())
+    # qwin.setWindowFlag(Qt.WindowType.WindowMaximizeButtonHint, False)
+    # qwin.show()
 
 
 if __name__ == "__main__":
@@ -50,8 +59,15 @@ if __name__ == "__main__":
             "quiet": True
         }
     )
-    webview.create_window("Schedula", url="http://127.0.0.1:8000/")
+
+    window = webview.create_window(
+        "Schedula",
+        url="http://127.0.0.1:8000/",
+        width=1440,
+        height=900,
+        maximized=False,
+        resizable=False)
 
     server_thread.start()
-    webview.start()
+    webview.start(lock_window, window, gui="qt")
     server_thread.join(0)
