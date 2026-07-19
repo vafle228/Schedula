@@ -60,6 +60,7 @@ html, body, #app { height: 100%; }
 
 body {
   margin: 0;
+  zoom: 1.15;
   background: var(--bg);
   color: var(--fg);
   font-family: var(--sans);
