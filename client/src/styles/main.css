@@ -1,0 +1,259 @@
+/* ============ design tokens ============ */
+:root {
+  /* palette */
+  --bg: #F6F5F2;
+  --fg: #1F1E1B;
+  --fg-hover: #3A382F;
+  --panel: #FFFFFF;
+  --sub: #5C574E;
+  --muted: #8A857C;
+  --faint: #A8A399;
+  --dim: #B5B0A6;
+  --ghost: #C9C5BC;
+  --chip: #F2F0EB;
+  --hover: #FBFAF8;
+  --active: #ECEAE4;
+
+  --blue: #3B62C4;
+  --blue-dark: #2A4B9E;
+  --green: #1F8A5B;
+  --green-dark: #166A45;
+  --red: #C24536;
+  --red-dark: #8A4038;
+  --amber: #B07C1F;
+  --amber-dark: #8A6A28;
+  --orange: #D97706;
+  --orange-dark: #B45309;
+  --purple: #8A57B4;
+  --purple-dark: #6E4197;
+  --teal: #2E8A8A;
+  --teal-dark: #20706F;
+
+  --line: rgba(0, 0, 0, 0.09);
+  --line-soft: rgba(0, 0, 0, 0.07);
+  --line-strong: rgba(0, 0, 0, 0.14);
+
+  /* type */
+  --sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', monospace;
+
+  /* spacing scale: 4 / 8 / 12 / 16 / 24 / 32 */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* radius scale */
+  --r-sm: 6px;
+  --r-md: 7px;
+  --r-lg: 8px;
+  --r-xl: 10px;
+  --r-2xl: 12px;
+}
+
+/* ============ base ============ */
+* { box-sizing: border-box; }
+
+html, body, #app { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+a { color: var(--blue); text-decoration: none; }
+a:hover { color: var(--blue-dark); text-decoration: underline; }
+
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.14); border-radius: 6px; border: 3px solid #FFFFFF; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+input, select, textarea, button { font-family: var(--sans); color: var(--fg); }
+
+.mono { font-family: var(--mono); }
+
+/* ============ shared controls ============ */
+.btn {
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--fg);
+  font: 500 12.5px var(--sans);
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.btn:hover { background: var(--hover); }
+
+.btn-primary {
+  border: none;
+  background: var(--fg);
+  color: #FFFFFF;
+  font: 500 12.5px var(--sans);
+  padding: 8px 12px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.btn-primary:hover { background: var(--fg-hover); }
+.btn-primary:disabled { background: var(--dim); cursor: not-allowed; }
+
+.btn-lg { font-size: 13px; padding: 9px 16px; }
+.btn-primary.btn-lg { padding: 9px 18px; }
+
+.btn-danger {
+  border: 1px solid rgba(194, 69, 54, 0.35);
+  background: var(--panel);
+  color: var(--red);
+  font: 500 13px var(--sans);
+  padding: 9px 14px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.btn-danger:hover { background: rgba(194, 69, 54, 0.05); }
+
+.input {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  padding: 7px 10px;
+  font-size: 13px;
+  outline: none;
+  background: var(--hover);
+}
+.input:focus { border-color: var(--blue); background: var(--panel); }
+.input--white { background: var(--panel); }
+
+/* segmented control */
+.seg { display: flex; background: var(--chip); border-radius: var(--r-md); padding: 2px; gap: 2px; flex: none; }
+.seg button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font: 500 12px var(--sans);
+  padding: 5px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.seg button.on { background: var(--panel); color: var(--fg); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); }
+
+/* pill-style pick buttons (bordered) */
+.pick {
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--sub);
+  font: 500 12.5px var(--sans);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.pick.on { border-color: var(--fg); background: var(--fg); color: #FFFFFF; }
+
+/* card-style pick buttons (light fill when active) */
+.pick-soft {
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
+  background: var(--panel);
+  color: var(--fg);
+  font: 500 12px var(--sans);
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.pick-soft.on { border-color: var(--fg); background: var(--hover); }
+
+/* select with custom chevron */
+.select-wrap { position: relative; }
+.select-wrap select {
+  width: 100%;
+  appearance: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  padding: 7px 26px 7px 10px;
+  font-size: 12.5px;
+  outline: none;
+  background: var(--panel);
+  cursor: pointer;
+}
+.select-wrap select:focus { border-color: var(--blue); }
+.select-wrap .chev {
+  position: absolute;
+  right: 9px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+/* panel card */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xl);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* section micro-heading */
+.micro {
+  font: 500 10.5px var(--mono);
+  letter-spacing: 0.07em;
+  color: var(--muted);
+}
+
+.field-label { font-size: 11px; font-weight: 600; color: var(--muted); }
+
+/* alert boxes */
+.note-warn {
+  display: flex;
+  gap: 9px;
+  border: 1px solid rgba(176, 124, 31, 0.4);
+  background: rgba(176, 124, 31, 0.05);
+  border-radius: var(--r-lg);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--amber-dark);
+}
+.note-danger {
+  display: flex;
+  gap: 9px;
+  border: 1px solid rgba(194, 69, 54, 0.35);
+  background: rgba(194, 69, 54, 0.05);
+  border-radius: var(--r-lg);
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--red-dark);
+}
+.form-err { display: flex; gap: 7px; font-size: 12px; color: var(--red); }
+
+/* close × in modal headers */
+.x-close { cursor: pointer; color: var(--muted); font-size: 16px; padding: 2px 6px; }
+
+/* spinner */
+.spinner {
+  width: 34px;
+  height: 34px;
+  border: 3px solid var(--active);
+  border-top-color: var(--fg);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* success circle */
+.ok-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(31, 138, 91, 0.12);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}

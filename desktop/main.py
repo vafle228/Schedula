@@ -18,27 +18,17 @@ def resource_path(relative: str) -> str:
 
 @api.get("/")
 def enter_point():
-    return static_file("index.html", root=resource_path("client"))
+    return static_file("index.html", root=resource_path("client/dist"))
 
 
-@api.get("/css/<filepath:re:.*\\.css>")
-def css(filepath: str):
-    return static_file(filepath, root=resource_path("client/css"))
+@api.get("/assets/<filepath:path>")
+def assets(filepath: str):
+    return static_file(filepath, root=resource_path("client/dist/assets"))
 
 
-@api.get("/nullstyle.css")
-def null_style():
-    return static_file("nullstyle.css", root=resource_path("client/"))
-
-
-@api.get("/fonts/<filepath:re:.*\\.(eot|otf|svg|ttf|woff|woff2?)>")
-def font(filepath: str):
-    return static_file(filepath, root=resource_path("client/fonts"))
-
-
-@api.get("/js/<filepath:re:.*\\.js>")
-def js(filepath: str):
-    return static_file(filepath, root=resource_path("client/js"))
+@api.get("/<filepath:path>")
+def spa_fallback(filepath: str):
+    return static_file("index.html", root=resource_path("client/dist"))
 
 
 if __name__ == "__main__":
@@ -55,8 +45,8 @@ if __name__ == "__main__":
     window = webview.create_window(
         "Schedula",
         url="http://127.0.0.1:8000/",
-        width=1640,
-        height=900,
+        width=1200,
+        height=700,
         maximized=False,
         resizable=False)
     webview.start(gui="qt")
