@@ -1,6 +1,7 @@
 <script setup>
 import { reactive, computed, onMounted, onUnmounted } from 'vue'
 import { store } from '../../store/index.js'
+import { confirmDelete } from '../../composables/useConfirm.js'
 import { initials, avatarBg, plural } from '../../utils/format.js'
 import RoomsEditor from '../../components/RoomsEditor.vue'
 import AvailabilityEditor from '../../components/AvailabilityEditor.vue'
@@ -86,8 +87,25 @@ async function addGroup() {
 const majCanDel = computed(() => !!curM.value && curMGroups.value.length === 0)
 async function delMajor() {
   if (!majCanDel.value) return
-  await store.deleteMajor(curM.value.id)
+  const m = curM.value
+  const ok = await confirmDelete({
+    title: 'Удалить специальность?',
+    message: 'Специальность будет удалена из справочника. Действие необратимо.',
+    entityName: m.code ? `${m.name} · ${m.code}` : m.name,
+  })
+  if (!ok) return
+  await store.deleteMajor(m.id)
   ui.mid = store.state.majors[0] ? store.state.majors[0].id : null
+}
+
+async function delGroup(row) {
+  if (row.locked) return
+  const ok = await confirmDelete({
+    title: 'Удалить группу?',
+    message: 'Группа будет удалена из справочника. Действие необратимо.',
+    entityName: row.g.id,
+  })
+  if (ok) store.deleteGroup(row.g.id)
 }
 
 /* ================= teachers ================= */
@@ -114,6 +132,28 @@ const tList = computed(() => tShown.value.map((t) => {
 
 const curT = computed(() => store.teacherById(ui.tid) || store.state.teachers[0] || null)
 const curAbs = computed(() => (curT.value ? curT.value.absences || [] : []))
+
+const teachUsage = computed(() => {
+  if (!curT.value) return { assigns: 0, lessons: 0, locked: false }
+  const id = curT.value.id
+  const assigns = Object.values(store.state.assignments).filter((a) => a.teacherId === id).length
+  const lessons = store.state.lessons.filter((l) => l.teacherId === id).length
+  return { assigns, lessons, locked: assigns > 0 || lessons > 0 }
+})
+const teachCanDel = computed(() => !!curT.value && !teachUsage.value.locked)
+
+async function delTeacher() {
+  if (!teachCanDel.value) return
+  const t = curT.value
+  const ok = await confirmDelete({
+    title: 'Удалить преподавателя?',
+    message: 'Преподаватель будет удалён из справочника вместе с доступностью и периодами отсутствия. Действие необратимо.',
+    entityName: t.name,
+  })
+  if (!ok) return
+  await store.deleteTeacher(t.id)
+  ui.tid = store.state.teachers[0] ? store.state.teachers[0].id : null
+}
 
 function uploadPhoto(e) {
   const f = e.target.files && e.target.files[0]
@@ -267,7 +307,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   class="grp-del"
                   :class="{ off: row.locked }"
                   :title="row.delTip"
-                  @click="!row.locked && store.deleteGroup(row.g.id)"
+                  @click="delGroup(row)"
                 >✕</button>
               </div>
               <div v-if="grpRows.length === 0" class="grp-empty">
@@ -372,6 +412,21 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             Жёсткие ограничения генератор не нарушает; нежелательные слоты постарается избежать.
             Периоды отсутствия исключают эти даты из расписания.
             Изменения сразу учитываются в проверке конфликтов «Расписания».
+          </div>
+
+          <div class="card-foot narrow">
+            <span class="foot-note">
+              Преподаватель удаляется, только если на него нет назначений в плане и занятий в расписании.
+              {{ teachUsage.locked
+                ? 'Сейчас закреплено: назначений ' + teachUsage.assigns + ', занятий ' + teachUsage.lessons + '.'
+                : '' }}
+            </span>
+            <span
+              class="maj-del"
+              :class="{ off: !teachCanDel }"
+              :title="teachCanDel ? 'Удалить преподавателя' : 'Нельзя удалить: сначала снимите назначения и занятия'"
+              @click="delTeacher"
+            >Удалить преподавателя</span>
           </div>
         </div>
       </div>

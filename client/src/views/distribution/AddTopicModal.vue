@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { store } from '../../store/index.js'
 import ModalWindow from '../../components/ModalWindow.vue'
-import { dui } from './useDistribution.js'
+import { dui, KINDS, kindColor } from './useDistribution.js'
 
 const at = computed(() => dui.addTopic)
 const disc = computed(() => (at.value ? store.disciplineById(at.value.discId) : null))
@@ -25,21 +25,13 @@ async function save() {
       </div>
     </template>
     <div class="body">
-      <div class="fld">
+      <div class="fld" style="align-self: flex-start; width: 200px">
         <span class="lbl">Вид занятия</span>
-        <div class="seg" style="align-self: flex-start">
-          <button
-            :class="{ on: at.kind === 'lec' }"
-            :style="at.kind === 'lec' ? { color: '#3B62C4' } : {}"
-            style="padding: 6px 16px; font-size: 12.5px"
-            @click="at.kind = 'lec'"
-          >Лекция</button>
-          <button
-            :class="{ on: at.kind === 'prac' }"
-            :style="at.kind === 'prac' ? { color: '#1F8A5B' } : {}"
-            style="padding: 6px 16px; font-size: 12.5px"
-            @click="at.kind = 'prac'"
-          >Практика</button>
+        <div class="select-wrap">
+          <select v-model="at.kind" :style="{ color: kindColor(at.kind), fontWeight: 500 }">
+            <option v-for="k in KINDS" :key="k.k" :value="k.k">{{ k.label }}</option>
+          </select>
+          <span class="chev">▾</span>
         </div>
       </div>
       <div class="row">

@@ -3,7 +3,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { store } from '../../store/index.js'
 import ModalWindow from '../../components/ModalWindow.vue'
 import InfoDot from '../../components/InfoDot.vue'
-import { dui } from './useDistribution.js'
+import { dui, KINDS, kindColor } from './useDistribution.js'
 
 const nameEl = ref(null)
 
@@ -26,7 +26,6 @@ const valid = computed(() => !!(
   cd.value
   && cd.value.name.trim()
   && selectedGroup.value
-  && cd.value.topics.some((t) => t.name.trim() && Number(t.hours) > 0)
 ))
 
 function addTopicRow() {
@@ -44,7 +43,6 @@ async function save() {
   const topics = c.topics
     .filter((t) => t.name.trim() && Number(t.hours) > 0)
     .map((t) => ({ kind: t.kind, name: t.name.trim(), hours: Number(t.hours) }))
-  if (!topics.length) { c.error = 'Добавьте хотя бы одну тему с названием и часами'; return }
   const payload = { name: c.name.trim(), groupId: selectedGroup.value.id, period: c.period, topics }
   const d = await store.createDiscipline(payload)
   store.setPeriod(c.period)
@@ -81,37 +79,35 @@ async function save() {
           </datalist>
         </div>
       </div>
-      <div class="row row-meta">
-        <div class="fld">
-          <span class="lbl">Семестр</span>
-          <div class="row-btns">
-            <button class="pick pb" :class="{ on: cd.period === 'fall' }" @click="cd.period = 'fall'">Осень</button>
-            <button class="pick pb" :class="{ on: cd.period === 'spring' }" @click="cd.period = 'spring'">Весна</button>
-          </div>
+      <div class="fld">
+        <span class="lbl">Семестр</span>
+        <div class="row-btns">
+          <button class="pick pb" :class="{ on: cd.period === 'fall' }" @click="cd.period = 'fall'">Осень</button>
+          <button class="pick pb" :class="{ on: cd.period === 'spring' }" @click="cd.period = 'spring'">Весна</button>
         </div>
-        <div class="fld">
-          <span class="lbl">Курс</span>
-          <span class="course-chip mono">{{ selectedGroup ? selectedGroup.course + ' курс (из группы)' : '— выберите группу' }}</span>
-        </div>
-        <div class="total mono">Итого: {{ totalHours }} ч</div>
       </div>
 
       <div class="fld">
         <div class="topics-head">
           <span class="lbl">Темы</span>
-          <InfoDot :size="15" tip="Каждая тема — лекция или практика; назначается своему преподавателю." />
+          <InfoDot :size="15" tip="Каждая тема — занятие своего вида; назначается своему преподавателю. Дисциплину можно создать и без тем — добавите позже." />
+          <span class="sp"></span>
+          <span class="total mono">Итого: {{ totalHours }} ч</span>
         </div>
         <div class="topics-box">
           <div v-for="(tp, i) in cd.topics" :key="i" class="topic-row">
-            <div class="seg seg-sm">
-              <button :class="{ on: tp.kind === 'lec' }" :style="tp.kind === 'lec' ? { color: '#3B62C4' } : {}" @click="tp.kind = 'lec'">Лекция</button>
-              <button :class="{ on: tp.kind === 'prac' }" :style="tp.kind === 'prac' ? { color: '#1F8A5B' } : {}" @click="tp.kind = 'prac'">Практика</button>
+            <div class="select-wrap kind-sel">
+              <select v-model="tp.kind" :style="{ color: kindColor(tp.kind) }">
+                <option v-for="k in KINDS" :key="k.k" :value="k.k">{{ k.label }}</option>
+              </select>
+              <span class="chev">▾</span>
             </div>
             <input v-model="tp.name" class="input topic-name" placeholder="Название темы" @input="cd.error = ''">
             <input v-model="tp.hours" class="input topic-hours mono" type="number" min="0">
             <span class="hours-unit">ч</span>
             <span class="rm" title="Удалить тему" @click="removeTopicRow(i)">×</span>
           </div>
+          <div v-if="!cd.topics.length" class="topics-empty">Тем пока нет — добавьте ниже или позже, в списке дисциплин.</div>
           <div class="add-topic" @click="addTopicRow"><span class="plus">＋</span>Добавить тему</div>
         </div>
       </div>
@@ -127,13 +123,12 @@ async function save() {
 <style scoped>
 .body { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
 .row { display: flex; gap: 12px; }
-.row-meta { align-items: flex-end; flex-wrap: wrap; gap: 16px; }
 .fld { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .lbl { font-size: 12px; font-weight: 600; color: var(--sub); }
+.sp { flex: 1; }
 .row-btns { display: flex; gap: 4px; }
 .pb { padding: 0 16px; height: 32px; }
-.course-chip { font: 500 12px var(--mono); color: var(--sub); background: var(--chip); border-radius: 6px; padding: 8px 10px; }
-.total { flex: 1; text-align: right; font: 500 12px var(--mono); color: var(--sub); align-self: flex-end; padding-bottom: 8px; }
+.total { font: 500 12px var(--mono); color: var(--sub); }
 
 .topics-head { display: flex; align-items: center; gap: 7px; }
 .topics-box { border: 1px solid rgba(0, 0, 0, 0.1); border-radius: var(--r-lg); overflow: hidden; }
@@ -144,7 +139,8 @@ async function save() {
   padding: 8px 10px;
   border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
-.seg-sm button { font-size: 11px; padding: 3px 9px; border-radius: 5px; }
+.kind-sel { flex: none; width: 142px; }
+.kind-sel select { padding: 6px 24px 6px 9px; font-size: 12px; font-weight: 500; border-radius: var(--r-sm); }
 .topic-name { flex: 1; min-width: 0; font-size: 12.5px; padding: 6px 9px; border-radius: var(--r-sm); }
 .topic-hours { width: 64px; flex: none; font: 500 12.5px var(--mono); text-align: right; padding: 6px 8px; border-radius: var(--r-sm); }
 .hours-unit { font-size: 11px; color: var(--faint); flex: none; }
@@ -161,6 +157,12 @@ async function save() {
   font-weight: 500;
 }
 .add-topic:hover { background: var(--hover); }
+.topics-empty {
+  padding: 12px 12px 4px;
+  font-size: 12px;
+  color: var(--dim);
+  text-align: center;
+}
 .plus { font-size: 14px; line-height: 1; }
 .err { font-size: 12px; color: var(--orange-dark); flex: 1; }
 </style>

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { store } from '../../store/index.js'
+import { confirmDelete } from '../../composables/useConfirm.js'
 import { KINDS, kindOf, ALL_DAYS } from '../../utils/kinds.js'
 import ModalWindow from '../../components/ModalWindow.vue'
 import InfoDot from '../../components/InfoDot.vue'
@@ -101,7 +102,14 @@ async function save() {
 }
 
 async function del() {
+  const l = editL.value
   const id = lf.value.id
+  const ok = await confirmDelete({
+    title: 'Удалить занятие?',
+    message: 'Занятие будет удалено из расписания. Действие необратимо.',
+    entityName: l ? [l.disc, l.g].filter(Boolean).join(' · ') : '',
+  })
+  if (!ok) return
   ui.lf = null
   ui.sel = []
   await store.deleteLesson(id)

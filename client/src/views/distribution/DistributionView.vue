@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { store } from '../../store/index.js'
+import { confirmDelete } from '../../composables/useConfirm.js'
 import { initials, avatarBg } from '../../utils/format.js'
 import InfoDot from '../../components/InfoDot.vue'
 import AssignMenu from './AssignMenu.vue'
@@ -10,7 +11,7 @@ import CurriculumExportModal from './CurriculumExportModal.vue'
 import {
   dui, norm, filtered, progress, dragTopicIds, dragH, hoursOf, teacherOfTopic,
   courseOfGroup, openMenuAt, openMenuEv, commitAssign, resetFilters,
-  kindLabel, kindColor, dotRadius, topicIndex,
+  kindLabel, kindColor, dotRadius, topicIndex, KINDS,
 } from './useDistribution.js'
 
 const searchEl = ref(null)
@@ -34,8 +35,7 @@ const statusOpts = [
 ]
 const kindOpts = [
   { v: 'all', label: 'Вид: все' },
-  { v: 'lec', label: 'Только лекции' },
-  { v: 'prac', label: 'Только практики' },
+  ...KINDS.map((k) => ({ v: k.k, label: 'Только: ' + k.label.toLowerCase() })),
 ]
 const courseOpts = [
   { v: 'all', label: 'Курс: все' },
@@ -143,6 +143,26 @@ function topicClick(d, tp, e) {
 }
 function unassign(tp) {
   commitAssign([{ topicId: tp.id, to: null }])
+}
+async function removeDisc(d) {
+  const n = d.topics.length
+  const ok = await confirmDelete({
+    title: 'Удалить дисциплину?',
+    message: n
+      ? `Дисциплина и все её темы (${n}) будут удалены из плана вместе с назначениями и занятиями в расписании. Действие необратимо.`
+      : 'Дисциплина будет удалена из плана. Действие необратимо.',
+    entityName: `${d.name} · ${d.groupId}`,
+  })
+  if (ok) store.removeDiscipline(d.id)
+}
+
+async function removeTopic(d, tp) {
+  const ok = await confirmDelete({
+    title: 'Удалить тему?',
+    message: 'Тема, её назначение и занятия в расписании будут удалены. Дисциплина сохранится. Действие необратимо.',
+    entityName: `${tp.name} · ${d.name}`,
+  })
+  if (ok) store.removeTopic(tp.id)
 }
 
 /* ---------- teachers view-model ---------- */
@@ -371,6 +391,11 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   title="Назначить все незакрытые темы"
                   @click.stop="assignAll(dv.d, $event)"
                 >＋</span>
+                <span
+                  class="disc-rm"
+                  title="Удалить дисциплину из плана"
+                  @click.stop="removeDisc(dv.d)"
+                >×</span>
               </div>
               <div v-if="dv.expanded" class="topics">
                 <div
@@ -413,7 +438,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   <span
                     class="topic-rm"
                     title="Удалить тему из плана"
-                    @click.stop="store.removeTopic(tv.tp.id)"
+                    @click.stop="removeTopic(dv.d, tv.tp)"
                   >×</span>
                 </div>
                 <div
@@ -671,6 +696,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   cursor: pointer;
 }
 .plus-circle:hover { border-color: var(--blue); color: var(--blue); }
+.disc-rm { flex: none; color: var(--ghost); cursor: pointer; font-size: 17px; line-height: 1; padding: 0 2px; width: 16px; text-align: center; }
+.disc-rm:hover { color: var(--orange-dark); }
 
 .topics { border-top: 1px solid rgba(0, 0, 0, 0.06); background: #FCFBFA; padding: 4px 0; }
 .topic-row {

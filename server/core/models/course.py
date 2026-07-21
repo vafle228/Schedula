@@ -16,3 +16,6 @@ class CourseItem:
 class Course:
     id: int | None
     name: str
+    is_new: bool
+    group_id: int
+

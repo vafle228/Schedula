@@ -207,6 +207,15 @@ on('PATCH', '/teachers/:id', (p, q, body) => {
   if (body.name != null) t.name = body.name
   return t
 })
+on('DELETE', '/teachers/:id', (p) => {
+  const t = db.teachers.find((x) => x.id === p.id)
+  if (!t) throw new ApiError(404, 'Преподаватель не найден')
+  if (Object.values(db.assignments).some((a) => a.teacherId === p.id) || db.lessons.some((l) => l.teacherId === p.id)) {
+    throw new ApiError(409, 'На преподавателя есть назначения или занятия')
+  }
+  db.teachers = db.teachers.filter((x) => x.id !== p.id)
+  return null
+})
 on('PUT', '/teachers/:id/photo', (p, q, body) => {
   const t = db.teachers.find((x) => x.id === p.id)
   if (!t) throw new ApiError(404, 'Преподаватель не найден')

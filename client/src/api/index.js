@@ -38,6 +38,7 @@ export const api = {
   getTeachers: () => request('GET', '/teachers'),
   createTeacher: (body) => request('POST', '/teachers', body),
   patchTeacher: (id, body) => request('PATCH', `/teachers/${id}`, body),
+  deleteTeacher: (id) => request('DELETE', `/teachers/${id}`),
   putTeacherPhoto: (id, dataUrl) => request('PUT', `/teachers/${id}/photo`, { dataUrl }),
   deleteTeacherPhoto: (id) => request('DELETE', `/teachers/${id}/photo`),
   putTeacherConstraints: (id, c) => request('PUT', `/teachers/${id}/constraints`, c),

@@ -226,6 +226,11 @@ export const store = {
     await refreshPlan()
   },
 
+  async removeDiscipline(disciplineId) {
+    await api.deleteDiscipline(disciplineId)
+    await refreshPlan()
+  },
+
   /* ===== Расписание: занятия ===== */
 
   async placeLesson(id, day, slot, roomId) {
@@ -305,6 +310,10 @@ export const store = {
     const t = await api.createTeacher(body)
     state.teachers.push(t)
     return t
+  },
+  async deleteTeacher(id) {
+    await api.deleteTeacher(id)
+    state.teachers = state.teachers.filter((x) => x.id !== id)
   },
   async setTeacherPhoto(id, dataUrl) {
     const t = dataUrl ? await api.putTeacherPhoto(id, dataUrl) : await api.deleteTeacherPhoto(id)
