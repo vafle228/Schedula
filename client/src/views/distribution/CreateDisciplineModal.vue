@@ -3,7 +3,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { store } from '../../store/index.js'
 import ModalWindow from '../../components/ModalWindow.vue'
 import InfoDot from '../../components/InfoDot.vue'
-import { dui, KINDS, kindColor } from './useDistribution.js'
+import { dui, KINDS } from './useDistribution.js'
 
 const nameEl = ref(null)
 
@@ -43,9 +43,8 @@ async function save() {
   const topics = c.topics
     .filter((t) => t.name.trim() && Number(t.hours) > 0)
     .map((t) => ({ kind: t.kind, name: t.name.trim(), hours: Number(t.hours) }))
-  const payload = { name: c.name.trim(), groupId: selectedGroup.value.id, period: c.period, topics }
+  const payload = { name: c.name.trim(), groupId: selectedGroup.value.id, period: store.state.period, topics }
   const d = await store.createDiscipline(payload)
-  store.setPeriod(c.period)
   dui.expDisc = { ...dui.expDisc, [d.id]: true }
   dui.cd = null
 }
@@ -80,14 +79,6 @@ async function save() {
         </div>
       </div>
       <div class="fld">
-        <span class="lbl">Семестр</span>
-        <div class="row-btns">
-          <button class="pick pb" :class="{ on: cd.period === 'fall' }" @click="cd.period = 'fall'">Осень</button>
-          <button class="pick pb" :class="{ on: cd.period === 'spring' }" @click="cd.period = 'spring'">Весна</button>
-        </div>
-      </div>
-
-      <div class="fld">
         <div class="topics-head">
           <span class="lbl">Темы</span>
           <InfoDot :size="15" tip="Каждая тема — занятие своего вида; назначается своему преподавателю. Дисциплину можно создать и без тем — добавите позже." />
@@ -95,19 +86,21 @@ async function save() {
           <span class="total mono">Итого: {{ totalHours }} ч</span>
         </div>
         <div class="topics-box">
-          <div v-for="(tp, i) in cd.topics" :key="i" class="topic-row">
-            <div class="select-wrap kind-sel">
-              <select v-model="tp.kind" :style="{ color: kindColor(tp.kind) }">
-                <option v-for="k in KINDS" :key="k.k" :value="k.k">{{ k.label }}</option>
-              </select>
-              <span class="chev">▾</span>
+          <div class="topics-list">
+            <div v-for="(tp, i) in cd.topics" :key="i" class="topic-row">
+              <div class="select-wrap kind-sel">
+                <select v-model="tp.kind">
+                  <option v-for="k in KINDS" :key="k.k" :value="k.k">{{ k.label }}</option>
+                </select>
+                <span class="chev">▾</span>
+              </div>
+              <input v-model="tp.name" class="input topic-name" placeholder="Название темы" @input="cd.error = ''">
+              <input v-model="tp.hours" class="input topic-hours mono" type="number" min="0">
+              <span class="hours-unit">ч</span>
+              <span class="rm" title="Удалить тему" @click="removeTopicRow(i)">×</span>
             </div>
-            <input v-model="tp.name" class="input topic-name" placeholder="Название темы" @input="cd.error = ''">
-            <input v-model="tp.hours" class="input topic-hours mono" type="number" min="0">
-            <span class="hours-unit">ч</span>
-            <span class="rm" title="Удалить тему" @click="removeTopicRow(i)">×</span>
+            <div v-if="!cd.topics.length" class="topics-empty">Тем пока нет — добавьте ниже или позже, в списке дисциплин.</div>
           </div>
-          <div v-if="!cd.topics.length" class="topics-empty">Тем пока нет — добавьте ниже или позже, в списке дисциплин.</div>
           <div class="add-topic" @click="addTopicRow"><span class="plus">＋</span>Добавить тему</div>
         </div>
       </div>
@@ -126,12 +119,13 @@ async function save() {
 .fld { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .lbl { font-size: 12px; font-weight: 600; color: var(--sub); }
 .sp { flex: 1; }
-.row-btns { display: flex; gap: 4px; }
-.pb { padding: 0 16px; height: 32px; }
 .total { font: 500 12px var(--mono); color: var(--sub); }
 
 .topics-head { display: flex; align-items: center; gap: 7px; }
 .topics-box { border: 1px solid rgba(0, 0, 0, 0.1); border-radius: var(--r-lg); overflow: hidden; }
+.topics-list { max-height: 240px; overflow-y: auto; }
+.topics-list .topic-row:last-child { border-bottom: none; }
+.add-topic { border-top: 1px solid rgba(0, 0, 0, 0.05); }
 .topic-row {
   display: flex;
   align-items: center;

@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { store } from '../../store/index.js'
 import ModalWindow from '../../components/ModalWindow.vue'
-import { dui, KINDS, kindColor } from './useDistribution.js'
+import { dui, KINDS } from './useDistribution.js'
 
 const at = computed(() => dui.addTopic)
 const disc = computed(() => (at.value ? store.disciplineById(at.value.discId) : null))
@@ -28,7 +28,7 @@ async function save() {
       <div class="fld" style="align-self: flex-start; width: 200px">
         <span class="lbl">Вид занятия</span>
         <div class="select-wrap">
-          <select v-model="at.kind" :style="{ color: kindColor(at.kind), fontWeight: 500 }">
+          <select v-model="at.kind">
             <option v-for="k in KINDS" :key="k.k" :value="k.k">{{ k.label }}</option>
           </select>
           <span class="chev">▾</span>

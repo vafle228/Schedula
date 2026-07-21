@@ -238,7 +238,6 @@ function openCreateDisc() {
   dui.cd = {
     name: '',
     group: firstGroup ? firstGroup.id : '',
-    period: store.state.period,
     topics: [{ kind: 'lec', name: '', hours: 32 }],
     error: '',
   }
