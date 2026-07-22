@@ -226,11 +226,11 @@ function onPoolDrop(e) {
                 @click="openLf(null, ls.l.id)"
               >
                 <div class="lesson-top">
-                  <span class="lesson-mark" :class="ls.dot"></span>
                   <span class="lesson-no mono">{{ ls.no }}</span>
                   <span class="lesson-topic">{{ ls.topic }}</span>
                   <span v-if="ls.sub" class="lesson-tag sub">замена</span>
-                  <span v-else-if="!ls.placed" class="lesson-tag">в пул</span>
+                  <span v-else-if="ls.placed" class="lesson-tag placed-tag">✓ в сетке</span>
+                  <span v-else class="lesson-tag">в пуле</span>
                 </div>
                 <div v-if="ls.question" class="lesson-q">{{ ls.question }}</div>
               </div>
@@ -335,13 +335,11 @@ function onPoolDrop(e) {
 .lesson { border: 1px solid rgba(0, 0, 0, 0.09); border-radius: 6px; padding: 6px 8px; background: #FBFAF8; cursor: grab; display: flex; flex-direction: column; gap: 3px; }
 .lesson.placed { background: #FFF; }
 .lesson-top { display: flex; align-items: center; gap: 6px; }
-.lesson-mark { width: 8px; height: 8px; border-radius: 50%; flex: none; }
-.lesson-mark.placed { background: #1F8A5B; }
-.lesson-mark.pool { background: transparent; border: 1.5px solid #B07C1F; }
 .lesson-no { font: 400 9.5px var(--mono); color: var(--faint); }
 .lesson-topic { font-size: 11.5px; font-weight: 600; color: #2A4B9E; flex: 1; min-width: 0; line-height: 1.25; }
 .lesson-tag { font: 500 8.5px var(--mono); color: #8A6A28; background: rgba(176, 124, 31, 0.14); border-radius: 3px; padding: 1px 5px; }
 .lesson-tag.sub { color: #8A6A28; }
+.lesson-tag.placed-tag { color: #166A45; background: rgba(31, 138, 91, 0.12); }
 .lesson-q { padding-left: 14px; font-size: 10px; color: #5C574E; }
 .add-lesson { text-align: left; background: transparent; border: 1px dashed rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 6px 10px; font-size: 11.5px; color: var(--blue); cursor: pointer; }
 
