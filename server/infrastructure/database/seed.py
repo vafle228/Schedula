@@ -1,0 +1,310 @@
+"""Seed dataset — a faithful port of the client mock's ``seed.js``.
+
+Builds the one coherent demo dataset (master data + plan + lesson slots) as
+domain objects and persists it through the repositories, so a fresh database
+matches what the frontend used to get from its in-memory mock.
+"""
+
+from __future__ import annotations
+
+from core.models.academic_year import AcademicYear, YearStatus
+from core.models.assignment import Assignment
+from core.models.discipline import Discipline, Topic
+from core.models.group import Group
+from core.models.lesson import Lesson
+from core.models.major import Major
+from core.models.period import Period, Slot
+from core.models.room import Room
+from core.models.teacher import Absence, AbsenceType, Teacher, TeacherConstraints
+from core.models.topic_type import TopicType
+from infrastructure.database.unit_of_work import SqliteUnitOfWork
+
+# Factory-default topic types (also the client's DEFAULT_TOPIC_TYPES).
+DEFAULT_TOPIC_TYPES: list[TopicType] = [
+    TopicType("lec", "Лекция", "Лек.", "#3B62C4", 2),
+    TopicType("prac", "Практика", "Практ.", "#1F8A5B", 2),
+    TopicType("lab", "Лабораторная", "Лаб.", "#B45309", 2),
+    TopicType("sem", "Семинар", "Сем.", "#8A3FFC", 2),
+    TopicType("consult", "Консультация", "Конс.", "#0E7490", 1),
+    TopicType("exam", "Экзамен", "Экз.", "#C0392B", 2),
+    TopicType("course", "Курсовая", "Курс.", "#7A756C", 2),
+]
+
+# 5 slots: 4×2 ac.h + 1×1 ac.h, each carrying the break (minutes) after it.
+_DEFAULT_SLOTS: list[tuple[str, int, int]] = [
+    ("08:30", 2, 15),
+    ("10:20", 2, 30),
+    ("12:25", 2, 10),
+    ("14:10", 2, 15),
+    ("16:00", 1, 15),
+]
+
+
+def _slots() -> list[Slot]:
+    return [Slot(start=s, hours=h, brk=b) for s, h, b in _DEFAULT_SLOTS]
+
+
+def _periods() -> list[Period]:
+    week = [True, True, True, True, True, False, False]
+    return [
+        Period(
+            id="fall",
+            date_from="01.09.2026",
+            date_to="27.12.2026",
+            start_date="2026-09-01",
+            active_days=list(week),
+            acad_min=45,
+            slots=_slots(),
+            slots_per_day=len(_DEFAULT_SLOTS),
+            weeks_count=16,
+            holidays=["3-2", "11-0"],
+        ),
+        Period(
+            id="spring",
+            date_from="09.02.2027",
+            date_to="31.05.2027",
+            start_date="2027-02-08",
+            active_days=list(week),
+            acad_min=45,
+            slots=_slots(),
+            slots_per_day=len(_DEFAULT_SLOTS),
+            weeks_count=16,
+            holidays=["2-4", "10-0"],
+        ),
+    ]
+
+
+def _years() -> list[AcademicYear]:
+    return [
+        AcademicYear("y2526", "2025/26", "01.09.2025", "28.12.2025",
+                     "09.02.2026", "31.05.2026", YearStatus.DONE),
+        AcademicYear("y2627", "2026/27", "01.09.2026", "27.12.2026",
+                     "08.02.2027", "30.05.2027", YearStatus.ACTIVE),
+        AcademicYear("y2728", "2027/28", "01.09.2027", "26.12.2027",
+                     "07.02.2028", "28.05.2028", YearStatus.DRAFT),
+    ]
+
+
+def _constraints(
+    hard: list[str], soft: list[str], method: int | None, max_per_day: int | None
+) -> TeacherConstraints:
+    return TeacherConstraints(hard=hard, soft=soft, method=method, max_per_day=max_per_day)
+
+
+# (id, name, constraints | None, [(absence_id, type, label), ...])
+_TEACHERS: list[tuple[str, str, TeacherConstraints | None, list[tuple[str, str, str]]]] = [
+    ("t1", "Орлова И.К.", _constraints(["0-6", "1-6"], [], 2, 4),
+     [("a1", "vacation", "01–14 сентября"), ("a2", "trip", "20–22 октября")]),
+    ("t2", "Ким Д.С.", _constraints(["0-0", "0-1"], ["4-5", "4-6"], None, 3), []),
+    ("t3", "Стеклов П.А.", _constraints([], ["0-0"], 4, 4),
+     [("a3", "vacation", "10–24 марта")]),
+    ("t4", "Белов А.Н.", None, []),
+    ("t5", "Юсупова Р.М.", _constraints(["3-5", "3-6", "4-5", "4-6"], [], None, None),
+     [("a4", "vacation", "07–20 октября"), ("a5", "sick", "03–05 ноября")]),
+    ("t6", "Дроздова Е.В.", _constraints([], ["0-5", "0-6"], None, 4), []),
+    ("t7", "Гарин О.Л.", None, []),
+    ("t8", "Мельник С.С.", _constraints(["2-0", "2-1", "2-2"], [], None, 4),
+     [("a6", "vacation", "01–14 апреля")]),
+    ("t9", "Ахматова Л.Р.", None, []),
+    ("t10", "Козлов В.П.", None, []),
+]
+
+_ROOMS: list[tuple[str, str, int]] = [
+    ("214", "Лекционная", 80), ("118", "Лекционная", 120),
+    ("301", "Лекционная", 60), ("305", "Лекционная", 40),
+    ("220", "Лекционная", 50), ("к.412", "Комп. класс", 25),
+    ("к.413", "Комп. класс", 25), ("лаб.2", "Лаборатория", 20),
+]
+
+_MAJORS: list[tuple[str, str, str]] = [
+    ("m1", "09.02.07", "Информационные системы и программирование"),
+    ("m2", "09.02.03", "Программирование в компьютерных системах"),
+    ("m3", "38.02.01", "Экономика и бухгалтерский учёт"),
+    ("m4", "40.02.04", "Юриспруденция"),
+]
+
+_GROUPS: list[tuple[str, str, int]] = [
+    ("ИС-31", "m1", 3), ("ИС-32", "m1", 3), ("ИС-21", "m1", 2), ("ИС-11", "m1", 1),
+    ("ПКС-21", "m2", 2), ("ПКС-22", "m2", 2), ("ЭК-11", "m3", 1),
+]
+
+# (group, discipline, kind, teacher|None, room, placed[(day,slot)...], extra, opts)
+_SPEC: list[tuple] = [
+    ("ИС-31", "Матанализ", "lec", "t1", "214", [(0, 0)], 0, {}),
+    ("ИС-31", "Матанализ", "prac", "t1", "214", [(0, 1)], 1, {}),
+    ("ИС-31", "Программирование", "prac", "t2", "к.412", [(1, 0)], 1, {}),
+    ("ИС-31", "Программирование", "lec", "t2", "214", [(4, 3)], 0, {}),
+    ("ИС-31", "Физика", "lec", "t3", "118", [(3, 0)], 0, {}),
+    ("ИС-31", "История", "lec", "t4", "301", [(1, 1)], 0, {}),
+    ("ИС-31", "БЖД", "lec", "t5", "220", [(2, 1)], 0, {"pin": True}),
+    ("ИС-31", "Англ. язык", "prac", "t6", "305", [(4, 1)], 1, {}),
+    ("ИС-31", "Базы данных", "prac", "t2", "к.413", [], 2, {}),
+    ("ИС-32", "История", "lec", "t4", "301", [(1, 1)], 0, {}),
+    ("ИС-32", "Матанализ", "lec", "t1", "214", [(1, 0)], 1, {}),
+    ("ИС-32", "Философия", "lec", None, "305", [(3, 2)], 0, {"orphanTeacher": "t9"}),
+    ("ИС-32", "Программирование", "prac", "t2", "к.412", [(2, 3)], 1, {}),
+    ("ИС-32", "Физика", "lec", "t3", "118", [(3, 1)], 0, {}),
+    ("ИС-32", "Англ. язык", "prac", "t6", "305", [(0, 2)], 1, {}),
+    ("ПКС-21", "Веб-разработка", "prac", "t7", "к.413", [(0, 0), (2, 0)], 1, {}),
+    ("ПКС-21", "ОС и сети", "lec", "t8", "220", [(1, 2)], 1, {}),
+    ("ПКС-21", "Матанализ", "lec", "t1", "118", [(3, 2)], 0, {}),
+    ("ПКС-21", "История", "lec", "t4", "301", [(4, 0)], 0, {}),
+    ("ПКС-21", "Базы данных", "prac", "t10", "к.412", [], 2, {}),
+    ("ПКС-22", "Веб-разработка", "prac", "t7", "к.413", [(0, 1), (2, 1)], 0, {}),
+    ("ПКС-22", "ОС и сети", "lec", "t8", "220", [(4, 2)], 1, {}),
+    ("ПКС-22", "Англ. язык", "prac", "t6", "305", [(1, 3)], 1, {}),
+    ("ПКС-22", "Физика", "lec", "t3", "118", [(2, 3)], 0, {}),
+    ("ПКС-22", "История", "lec", "t4", "301", [], 1, {}),
+    ("ЭК-11", "Статистика", "lec", "t8", "214", [(0, 0)], 0, {}),
+    ("ЭК-11", "Экономика", "lec", "t9", "301", [(0, 3), (2, 2)], 1, {}),
+    ("ЭК-11", "Матанализ", "prac", "t1", "305", [(1, 2)], 1, {}),
+    ("ЭК-11", "Англ. язык", "prac", "t6", "305", [(3, 3)], 0, {}),
+    ("ЭК-11", "Информатика", "prac", "t10", "к.412", [], 2, {}),
+]
+
+_THEMES: dict[str, tuple[str, str]] = {
+    "ИС-31|Матанализ|lec": ("Тема 4. Пределы и непрерывность",
+                            "Предел функции в точке. Односторонние пределы"),
+    "ИС-31|Матанализ|prac": ("Тема 4. Пределы и непрерывность",
+                             "Вычисление пределов: раскрытие неопределённостей"),
+    "ИС-31|Программирование|prac": ("Тема 2. Структуры данных",
+                                    "Списки, словари, множества: типовые операции"),
+    "ИС-31|Программирование|lec": ("Тема 2. Структуры данных",
+                                   "Абстрактные типы данных. Сложность операций"),
+    "ИС-31|Физика|lec": ("Тема 3. Динамика материальной точки",
+                         "Законы Ньютона. Силы в механике"),
+    "ИС-31|БЖД|lec": ("Тема 1. Основы безопасности",
+                      "Классификация опасных и вредных факторов"),
+    "ИС-32|Матанализ|lec": ("Тема 4. Пределы и непрерывность",
+                            "Предел функции в точке. Односторонние пределы"),
+    "ПКС-21|Веб-разработка|prac": ("Тема 5. Клиент-серверное взаимодействие",
+                                   "REST API: методы, коды ответов, форматы"),
+    "ПКС-21|ОС и сети|lec": ("Тема 3. Процессы и потоки",
+                             "Планирование процессов. Состояния потока"),
+    "ЭК-11|Экономика|lec": ("Тема 1. Спрос и предложение",
+                            "Рыночное равновесие. Эластичность спроса"),
+    "ЭК-11|Статистика|lec": ("Тема 2. Ряды распределения",
+                             "Средние величины и показатели вариации"),
+}
+
+# group, name, period, [(kind, topic_name, hours), ...]
+_EXTRA_PLAN: list[tuple[str, str, str, list[tuple[str, str, int]]]] = [
+    ("ИС-21", "Психология общения", "fall", [("lec", "Теоретический курс", 32)]),
+    ("ИС-11", "Русский язык", "fall", [("prac", "Практические занятия", 64)]),
+    ("ИС-31", "Теория вероятностей", "spring",
+     [("lec", "Теоретический курс", 32), ("prac", "Практикум", 32)]),
+    ("ИС-32", "ООП", "spring",
+     [("lec", "Лекционный раздел", 32), ("prac", "Лабораторный практикум", 64)]),
+    ("ИС-21", "Дискретная математика", "spring",
+     [("lec", "Раздел 1. Основы", 32), ("prac", "Семинары", 32)]),
+    ("ПКС-21", "Мобильная разработка", "spring",
+     [("prac", "Практикум", 64), ("lec", "Вводный раздел", 32)]),
+    ("ПКС-22", "Тестирование ПО", "spring",
+     [("lec", "Теория", 32), ("prac", "Практикум", 32)]),
+    ("ЭК-11", "Маркетинг", "spring", [("lec", "Теоретический курс", 32)]),
+]
+
+
+def _topic_name(kind: str) -> str:
+    return "Теоретический курс" if kind == "lec" else "Практические занятия"
+
+
+class _Counter:
+    """Monotonic id source with a fixed prefix (``d1``, ``tp1``, ``l1`` …)."""
+
+    def __init__(self, prefix: str) -> None:
+        self._prefix = prefix
+        self._n = 0
+
+    def next(self) -> str:
+        self._n += 1
+        return f"{self._prefix}{self._n}"
+
+
+def seed(uow: SqliteUnitOfWork) -> None:
+    """Populate an (empty) database with the demo dataset.
+
+    Args:
+        uow: A unit of work whose schema has already been initialised.
+    """
+    for period in _periods():
+        uow.periods.save(period)
+    for year in _years():
+        uow.years.add(year)
+    for topic_type in DEFAULT_TOPIC_TYPES:
+        uow.topic_types.add(topic_type)
+    for tid, name, constraints, absences in _TEACHERS:
+        uow.teachers.add(Teacher(id=tid, name=name, photo=None, constraints=constraints))
+        for aid, atype, label in absences:
+            uow.absences.add(Absence(aid, tid, AbsenceType(atype), label))
+    for room_id, room_type, capacity in _ROOMS:
+        uow.rooms.add(Room(room_id, room_type, capacity))
+    for mid, code, name in _MAJORS:
+        uow.majors.add(Major(mid, code, name))
+    for gid, major_id, course in _GROUPS:
+        uow.groups.add(Group(gid, major_id, course))
+
+    disc_ids = _Counter("d")
+    topic_ids = _Counter("tp")
+    lesson_ids = _Counter("l")
+    disc_by_key: dict[str, Discipline] = {}
+
+    for group, disc, kind, teacher_id, room_id, placed, extra, opts in _SPEC:
+        key = f"{group}|{disc}"
+        discipline = disc_by_key.get(key)
+        if discipline is None:
+            discipline = Discipline(
+                id=disc_ids.next(), name=disc, group_id=group,
+                period="fall", is_new=False, topics=[],
+            )
+            disc_by_key[key] = discipline
+            uow.disciplines.add(discipline)
+
+        pairs = len(placed) + extra
+        topic = Topic(
+            id=topic_ids.next(), discipline_id=discipline.id,
+            kind=kind, name=_topic_name(kind), hours=pairs * 32,
+        )
+        uow.topics.add(topic)
+
+        if teacher_id:
+            uow.assignments.set(Assignment(topic.id, teacher_id, pairs_per_week=pairs))
+
+        theme = _THEMES.get(f"{group}|{disc}|{kind}")
+        label = theme[0] if theme else ""
+        question = theme[1] if theme else ""
+        owner = teacher_id or opts.get("orphanTeacher")
+
+        for i, (day, slot) in enumerate(placed):
+            uow.lessons.add(Lesson(
+                id=lesson_ids.next(), topic_id=topic.id, discipline_id=discipline.id,
+                group_id=group, teacher_id=owner, room_id=room_id, kind=kind,
+                period="fall", week=1, day=day, slot=slot, sub_by=None,
+                pin=bool(opts.get("pin")), manual=False, ni=i + 1, nt=pairs,
+                topic_label=label, question=question,
+            ))
+
+        if teacher_id:
+            for i in range(extra):
+                uow.lessons.add(Lesson(
+                    id=lesson_ids.next(), topic_id=topic.id,
+                    discipline_id=discipline.id, group_id=group,
+                    teacher_id=teacher_id, room_id=room_id, kind=kind,
+                    period="fall", week=None, day=None, slot=None, sub_by=None,
+                    pin=False, manual=False, ni=len(placed) + i + 1, nt=pairs,
+                    topic_label=label, question=question,
+                ))
+
+    for group, name, period, topics in _EXTRA_PLAN:
+        discipline = Discipline(
+            id=disc_ids.next(), name=name, group_id=group,
+            period=period, is_new=False, topics=[],
+        )
+        uow.disciplines.add(discipline)
+        for kind, topic_name, hours in topics:
+            uow.topics.add(Topic(
+                id=topic_ids.next(), discipline_id=discipline.id,
+                kind=kind, name=topic_name, hours=hours,
+            ))
+
+    uow.commit()
