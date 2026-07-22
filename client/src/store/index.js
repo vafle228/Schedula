@@ -7,6 +7,7 @@
 import { reactive, computed } from 'vue'
 import { api } from '../api/index.js'
 import { analyze } from '../utils/conflicts.js'
+import { applyTopicTypes } from '../utils/kinds.js'
 
 /** Weekly-hour cap per teacher and period used by the load indicators. */
 export const NORM_HOURS = 240
@@ -15,6 +16,8 @@ const state = reactive({
   loaded: false,
   period: 'fall',
   periods: { fall: null, spring: null },
+  semesters: [],
+  topicTypes: [],
   majors: [],
   groups: [],
   teachers: [],
@@ -32,6 +35,13 @@ const state = reactive({
 })
 
 /* ---------- lookups ---------- */
+
+/** Keep the two current-year semester rows in sync with the active season. */
+function syncSemesterStatus() {
+  state.semesters.forEach((s) => {
+    if (s.current) s.status = s.id === state.period ? 'active' : 'draft'
+  })
+}
 
 const teacherById = (id) => state.teachers.find((t) => t.id === id)
 const roomById = (id) => state.rooms.find((r) => r.id === id)
@@ -156,11 +166,14 @@ export const store = {
 
   async init() {
     if (state.loaded) return
-    const [periods, majors, groups, teachers, rooms, disciplines, assignments, lessons] = await Promise.all([
-      api.getPeriods(), api.getMajors(), api.getGroups(), api.getTeachers(),
-      api.getRooms(), api.getDisciplines(), api.getAssignments(), api.getLessons(),
+    const [periods, semesters, topicTypes, majors, groups, teachers, rooms, disciplines, assignments, lessons] = await Promise.all([
+      api.getPeriods(), api.getSemesters(), api.getTopicTypes(), api.getMajors(), api.getGroups(),
+      api.getTeachers(), api.getRooms(), api.getDisciplines(), api.getAssignments(), api.getLessons(),
     ])
     periods.forEach((p) => { state.periods[p.id] = p })
+    state.semesters = semesters
+    state.topicTypes = topicTypes
+    applyTopicTypes(topicTypes)
     state.majors = majors
     state.groups = groups
     state.teachers = teachers
@@ -171,7 +184,49 @@ export const store = {
     state.loaded = true
   },
 
-  setPeriod(p) { state.period = p },
+  setPeriod(p) {
+    if (state.period === p) return
+    state.period = p
+    // per-semester undo — schedule snapshots do not carry across seasons
+    state.schedUndo = []
+    state.schedRedo = []
+    state.newIds = []
+    syncSemesterStatus()
+  },
+
+  /* ===== Настройки: семестры ===== */
+
+  async activateSemester(id) {
+    const sem = state.semesters.find((s) => s.id === id)
+    if (!sem || sem.status === 'active') return
+    state.semesters = await api.activateSemester(id)
+    if (sem.id === 'fall' || sem.id === 'spring') store.setPeriod(sem.id)
+  },
+  async createSemester(body) {
+    const s = await api.createSemester(body)
+    state.semesters.push(s)
+    return s
+  },
+
+  /* ===== Настройки: типы занятий ===== */
+
+  async reloadTopicTypes() {
+    state.topicTypes = await api.getTopicTypes()
+    applyTopicTypes(state.topicTypes)
+  },
+  async createTopicType(body) {
+    const t = await api.createTopicType(body)
+    await store.reloadTopicTypes()
+    return t
+  },
+  async patchTopicType(k, body) {
+    await api.patchTopicType(k, body)
+    await store.reloadTopicTypes()
+  },
+  async deleteTopicType(k) {
+    await api.deleteTopicType(k)
+    await store.reloadTopicTypes()
+  },
 
   /* ===== Распределение: назначения с undo/redo ===== */
 
@@ -392,5 +447,12 @@ export const store = {
     ])
     state.periods.fall = f
     state.periods.spring = s
+  },
+
+  /** Save the config of one season (Настройки редактируют активный семестр). */
+  async savePeriod(id, body) {
+    const p = await api.patchPeriod(id, body)
+    state.periods[id] = p
+    return p
   },
 }

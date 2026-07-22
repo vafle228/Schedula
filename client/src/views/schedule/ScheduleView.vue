@@ -53,6 +53,21 @@ function pickView(k) {
   ui.sel = []
 }
 
+/* Switching season: reset week/selection, close the lesson card, cancel any
+   placement mode and active drag; pool/problems/hours recompute by period. */
+function pickSeason(k) {
+  if (store.state.period === k) return
+  store.setPeriod(k)
+  ui.sel = []
+  ui.cursor = null
+  ui.dragId = null
+  ui.dlg = null
+  ui.lf = null
+  ui.prob = false
+  if (ui.gen && ui.gen.phase !== 'run') ui.gen = null
+  if (ui.ex) ui.ex = null
+}
+
 function openGen() {
   ui.gen = { phase: 'prep', mode: 'rebuild' }
   ui.sel = []
@@ -136,15 +151,22 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   <div class="view">
     <!-- ======= header ======= -->
     <div class="head">
-      <span class="head-title" title="Расписание, учебный год 2026/27">Расписание 2026/27</span>
-      <div class="seg">
+      <span class="head-title" title="Расписание, учебный год 2026/27">Расписание</span>
+      <span class="sem-plaque" title="Семестр активного учебного года — переключается прямо здесь">
+        <span class="plaque-lead mono">СЕМЕСТР</span>
         <button
           v-for="p in periodBtns"
           :key="p.k"
+          class="plaque-btn"
           :class="{ on: store.state.period === p.k }"
-          @click="store.setPeriod(p.k)"
+          @click="pickSeason(p.k)"
         >{{ p.label }}</button>
-      </div>
+      </span>
+      <router-link class="year-chip" to="/settings" title="Даты семестров, сетка звонков — в настройках учебного года">
+        <span class="plaque-lead mono">УЧ. ГОД</span>
+        <span class="yc-year">2026/27</span>
+        <span class="yc-act mono">настроить ↗</span>
+      </router-link>
       <div class="seg">
         <button
           v-for="v in viewBtns"
@@ -276,6 +298,40 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   text-overflow: ellipsis;
 }
 .sp { flex: 1; }
+
+.sem-plaque {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #F2F0EB;
+  border-radius: 7px;
+  padding: 2px 2px 2px 9px;
+  flex: none;
+}
+.plaque-lead { font: 500 9px var(--mono); letter-spacing: 0.07em; color: var(--muted); }
+.plaque-btn {
+  border: none;
+  border-radius: 5px;
+  padding: 4px 11px;
+  font: 500 12px var(--sans);
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+}
+.plaque-btn.on { font-weight: 600; color: var(--fg); background: #FFF; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14); }
+
+.year-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #F2F0EB;
+  border-radius: 7px;
+  padding: 5px 10px;
+  flex: none;
+}
+.year-chip:hover { background: #ECEAE4; text-decoration: none; }
+.yc-year { font-size: 12px; font-weight: 600; color: var(--fg); }
+.yc-act { font: 400 9.5px var(--mono); color: var(--faint); }
 
 .stat-chip {
   flex: none;

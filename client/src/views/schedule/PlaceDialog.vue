@@ -10,8 +10,8 @@ const L = computed(() => store.enriched.value.find((l) => l.id === dlg.value.id)
 
 const dayOpts = computed(() => dayIdxs.value.map((i) => ({ v: String(i), label: ALL_DAYS[i] })))
 const slotOpts = computed(() => Array.from({ length: slotsN.value }, (_, i) => {
-  const b = bells.value[i] || { from: '', to: '' }
-  return { v: String(i), label: (i + 1) + ' пара · ' + b.from + '–' + b.to }
+  const b = bells.value[i] || { from: '', to: '', hours: 2 }
+  return { v: String(i), label: (i + 1) + ' пара · ' + b.from + '–' + b.to + ' · ' + b.hours + ' ак.ч' }
 }))
 const roomOpts = computed(() => store.state.rooms.map((r) => ({ v: r.id, label: r.id + ', ' + r.type + ', ' + r.capacity })))
 
@@ -73,12 +73,12 @@ function confirm() {
         <span class="st-ico" :style="{ color: sc.color }">{{ sc.icon }}</span>
         <span class="st-text">{{ status.text }}</span>
       </div>
-      <div class="hint">Конфликт не блокирует размещение — он будет подсвечен в сетке и попадёт в панель проблем.</div>
+      <div class="hint">Конфликт не блокирует размещение — он будет подсвечен в сетке и попадёт в панель проблем. Слот на 1 ак.ч не примет занятие на 2 ак.ч.</div>
     </div>
     <template #footer>
       <button class="btn btn-lg" @click="ui.dlg = null">Отмена</button>
       <span style="flex: 1"></span>
-      <button class="btn-primary btn-lg" @click="confirm">Разместить</button>
+      <button class="btn-primary btn-lg" :disabled="status.kind === 'unfit'" @click="confirm">Разместить</button>
     </template>
   </ModalWindow>
 </template>

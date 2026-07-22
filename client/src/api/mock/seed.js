@@ -4,6 +4,14 @@
  * (disciplines → topics → assignments), Расписание owns lesson slots.
  */
 
+import { DEFAULT_TOPIC_TYPES } from '../../utils/kinds.js'
+
+/** 5 равномерных слотов: 4×2 ак.ч + 1×1 ак.ч (Итерация 6.4, Настройки v2). */
+const DEFAULT_SLOTS = [
+  { start: '08:30', hours: 2 }, { start: '10:20', hours: 2 }, { start: '12:25', hours: 2 },
+  { start: '14:10', hours: 2 }, { start: '16:00', hours: 1 },
+]
+
 export function buildSeed() {
   const periods = {
     fall: {
@@ -11,12 +19,10 @@ export function buildSeed() {
       dateFrom: '01.09.2026',
       dateTo: '27.12.2026',
       activeDays: [true, true, true, true, true, false, false],
-      slotsPerDay: 7,
-      bells: [
-        { from: '08:30', to: '10:00' }, { from: '10:10', to: '11:40' }, { from: '12:00', to: '13:30' },
-        { from: '14:00', to: '15:30' }, { from: '15:40', to: '17:10' }, { from: '17:20', to: '18:50' },
-        { from: '19:00', to: '20:30' },
-      ],
+      acadMin: 45,
+      slots: DEFAULT_SLOTS.map((s) => ({ ...s })),
+      slotsPerDay: DEFAULT_SLOTS.length,
+      ag: { start: '08:30', brk: 15, long: 30, longAfter: 2 },
       weeksCount: 16,
     },
     spring: {
@@ -24,15 +30,25 @@ export function buildSeed() {
       dateFrom: '09.02.2027',
       dateTo: '31.05.2027',
       activeDays: [true, true, true, true, true, false, false],
-      slotsPerDay: 7,
-      bells: [
-        { from: '08:30', to: '10:00' }, { from: '10:10', to: '11:40' }, { from: '12:00', to: '13:30' },
-        { from: '14:00', to: '15:30' }, { from: '15:40', to: '17:10' }, { from: '17:20', to: '18:50' },
-        { from: '19:00', to: '20:30' },
-      ],
+      acadMin: 45,
+      slots: DEFAULT_SLOTS.map((s) => ({ ...s })),
+      slotsPerDay: DEFAULT_SLOTS.length,
+      ag: { start: '08:30', brk: 15, long: 30, longAfter: 2 },
       weeksCount: 16,
     },
   }
+
+  // Явная сущность «семестр» (Итерация 6.1). Строки текущего года ('fall'/'spring')
+  // переключают активный сезон; прошлые — только для чтения. Активность выводится
+  // из state.period в сторе, поле status здесь — начальное значение.
+  const semesters = [
+    { id: 'aut2526', name: 'Осень 2025/26', from: '01.09.2025', to: '28.12.2025', status: 'done', current: false },
+    { id: 'spr2526', name: 'Весна 2025/26', from: '09.02.2026', to: '31.05.2026', status: 'done', current: false },
+    { id: 'fall', name: 'Осень 2026/27', from: '01.09.2026', to: '27.12.2026', status: 'active', current: true },
+    { id: 'spring', name: 'Весна 2026/27', from: '08.02.2027', to: '30.05.2027', status: 'draft', current: true },
+  ]
+
+  const topicTypes = DEFAULT_TOPIC_TYPES.map((t) => ({ ...t }))
 
   const teachers = [
     { id: 't1', name: 'Орлова И.К.', photo: null, c: { hard: ['0-6', '1-6'], soft: [], method: 2, max: 4 }, absences: [{ id: 'a1', type: 'vacation', label: '01–14 сентября' }, { id: 'a2', type: 'trip', label: '20–22 октября' }] },
@@ -77,7 +93,7 @@ export function buildSeed() {
     ['ИС-31', 'Матанализ', 'lec', 't1', '214', [[0, 0]], 0],
     ['ИС-31', 'Матанализ', 'prac', 't1', '214', [[0, 1]], 1],
     ['ИС-31', 'Программирование', 'prac', 't2', 'к.412', [[1, 0]], 1],
-    ['ИС-31', 'Программирование', 'lec', 't2', '214', [[4, 5]], 0],
+    ['ИС-31', 'Программирование', 'lec', 't2', '214', [[4, 3]], 0],
     ['ИС-31', 'Физика', 'lec', 't3', '118', [[3, 0]], 0],
     ['ИС-31', 'История', 'lec', 't4', '301', [[1, 1]], 0],
     ['ИС-31', 'БЖД', 'lec', 't5', '220', [[2, 1]], 0, { pin: true }],
@@ -97,7 +113,7 @@ export function buildSeed() {
     ['ПКС-22', 'Веб-разработка', 'prac', 't7', 'к.413', [[0, 1], [2, 1]], 0],
     ['ПКС-22', 'ОС и сети', 'lec', 't8', '220', [[4, 2]], 1],
     ['ПКС-22', 'Англ. язык', 'prac', 't6', '305', [[1, 3]], 1],
-    ['ПКС-22', 'Физика', 'lec', 't3', '118', [[2, 4]], 0],
+    ['ПКС-22', 'Физика', 'lec', 't3', '118', [[2, 3]], 0],
     ['ПКС-22', 'История', 'lec', 't4', '301', [], 1],
     ['ЭК-11', 'Статистика', 'lec', 't8', '214', [[0, 0]], 0],
     ['ЭК-11', 'Экономика', 'lec', 't9', '301', [[0, 3], [2, 2]], 1],
@@ -186,7 +202,7 @@ export function buildSeed() {
   })
 
   return {
-    periods, teachers, rooms, majors, groups, disciplines, assignments, lessons,
+    periods, semesters, topicTypes, teachers, rooms, majors, groups, disciplines, assignments, lessons,
     counters: { d: dN, tp: tpN, l: lN },
   }
 }

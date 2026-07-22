@@ -16,8 +16,8 @@ const rows = computed(() => {
   const out = []
   for (let s = 0; s < slotsN.value; s++) {
     const cells = dayIdxs.value.map((d) => buildCell(d, s))
-    const bell = bells.value[s] || { from: '', to: '' }
-    out.push({ s, label: String(s + 1), from: bell.from, to: bell.to, cells })
+    const bell = bells.value[s] || { from: '', to: '', hours: 2 }
+    out.push({ s, label: String(s + 1), from: bell.from, to: bell.to, hours: bell.hours, cells })
   }
   return out
 })
@@ -42,7 +42,14 @@ function buildCell(d, s) {
   }
   if (dragL.value) {
     const st = statusFor(dragL.value, d, s)
-    if (st.kind === 'free') {
+    if (st.kind === 'unfit') {
+      // 2 ак.ч не влезает в слот на 1 ак.ч — слот гаснет и не принимает drop
+      cell.style.border = '1px dashed rgba(0,0,0,0.14)'
+      cell.style.background = 'repeating-linear-gradient(45deg,#F2F0EB,#F2F0EB 5px,#FBFAF8 5px,#FBFAF8 10px)'
+      cell.style.opacity = '0.5'
+      cell.unfit = true
+      if (!here.length) { cell.tag = '✕ не тот слот'; cell.tagColor = '#8A857C' }
+    } else if (st.kind === 'free') {
       cell.style.border = '2px solid rgba(31,138,91,0.7)'
       cell.style.background = 'rgba(31,138,91,0.05)'
     } else if (st.kind === 'soft') {
@@ -103,6 +110,7 @@ function buildCard(l, d, s) {
 }
 
 function onCellDrop(cell) {
+  if (cell.unfit) return // 2 ак.ч нельзя в слот на 1 ак.ч
   if (ui.dragId) place(ui.dragId, cell.d, cell.s)
 }
 
@@ -134,7 +142,7 @@ const legend = computed(() => Object.keys(KINDS).map((k) => ({
 
 <template>
   <div ref="gridEl" class="grid-scroll" tabindex="0">
-    <div class="grid" :style="{ gridTemplateColumns: '46px repeat(' + dayIdxs.length + ', minmax(126px, 1fr))' }">
+    <div class="grid" :style="{ gridTemplateColumns: '54px repeat(' + dayIdxs.length + ', minmax(126px, 1fr))' }">
       <span></span>
       <span v-for="dh in dayHeads" :key="dh" class="day-head">{{ dh }}</span>
       <template v-for="row in rows" :key="row.s">
@@ -142,6 +150,7 @@ const legend = computed(() => Object.keys(KINDS).map((k) => ({
           <span class="slot-n mono">{{ row.label }}</span>
           <span class="slot-t mono">{{ row.from }}</span>
           <span class="slot-t mono">{{ row.to }}</span>
+          <span class="slot-h mono">{{ row.hours }} ак.ч</span>
         </span>
         <div
           v-for="cell in row.cells"
@@ -192,6 +201,7 @@ const legend = computed(() => Object.keys(KINDS).map((k) => ({
 .slot-label { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center; }
 .slot-n { font-size: 11px; color: var(--faint); }
 .slot-t { font-size: 8.5px; color: #C0BBB0; line-height: 1.2; }
+.slot-h { font-size: 8px; color: #A8A399; line-height: 1.2; margin-top: 1px; }
 
 .cell {
   position: relative;

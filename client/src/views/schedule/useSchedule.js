@@ -6,7 +6,8 @@
 import { reactive, computed } from 'vue'
 import { store } from '../../store/index.js'
 import { slotStatus } from '../../utils/conflicts.js'
-import { ALL_DAYS } from '../../utils/kinds.js'
+import { ALL_DAYS, kindHours } from '../../utils/kinds.js'
+import { slotBells } from '../../utils/slots.js'
 
 export const ui = reactive({
   view: 'group', // 'group' | 'teacher' | 'room'
@@ -16,6 +17,7 @@ export const ui = reactive({
   sel: [],
   cursor: null, // { d, s }
   dragId: null,
+  poolOver: false, // pool drop-zone is hovered by a placed lesson being dragged
   flashId: null,
   /* modals */
   prob: false,
@@ -37,15 +39,16 @@ export function flash(id) {
 
 /* ---------- period config ---------- */
 
-export const cfg = computed(() => store.state.periods[store.state.period] || { activeDays: [1, 1, 1, 1, 1, 0, 0], slotsPerDay: 7, bells: [] })
+export const cfg = computed(() => store.state.periods[store.state.period] || { activeDays: [1, 1, 1, 1, 1, 0, 0], acadMin: 45, slots: [], slotsPerDay: 0 })
 export const dayIdxs = computed(() => {
   const out = []
   cfg.value.activeDays.forEach((on, i) => { if (on) out.push(i) })
   return out
 })
 export const dayHeads = computed(() => dayIdxs.value.map((i) => ALL_DAYS[i]))
-export const slotsN = computed(() => cfg.value.slotsPerDay)
-export const bells = computed(() => cfg.value.bells)
+export const slots = computed(() => cfg.value.slots || [])
+export const slotsN = computed(() => slots.value.length || cfg.value.slotsPerDay || 0)
+export const bells = computed(() => slotBells(cfg.value.slots, cfg.value.acadMin || 45))
 
 /* ---------- lessons ---------- */
 
@@ -117,12 +120,14 @@ export const poolCards = computed(() => {
 /* ---------- placement ---------- */
 
 export function statusFor(L, d, s, r) {
-  return slotStatus(L, d, s, r, enriched.value, store.state.teachers)
+  return slotStatus(L, d, s, r, enriched.value, store.state.teachers, cfg.value)
 }
 
 export async function place(id, d, s, room) {
   const L = enriched.value.find((l) => l.id === id)
   if (!L) return
+  const slot = cfg.value.slots && cfg.value.slots[s]
+  if (slot && kindHours(L.kind) > slot.hours) return // 2 ак.ч нельзя в слот на 1 ак.ч
   if (ui.view === 'group' && L.g !== ui.ent.group) ui.ent.group = L.g
   ui.dragId = null
   ui.sel = []
@@ -134,6 +139,22 @@ export async function removeLessons(ids) {
   if (!ids.length) return
   await store.unplaceLessons(ids)
   ui.sel = []
+}
+
+/** True while a *placed* lesson is being dragged — shows the pool drop-zone. */
+export const dragPlaced = computed(() => {
+  if (!ui.dragId) return false
+  const L = enriched.value.find((l) => l.id === ui.dragId)
+  return !!(L && L.d != null)
+})
+
+/** Drag a placed lesson back onto the pool → снять с сетки (Итерация 8). */
+export async function unplaceToPool(id) {
+  const L = enriched.value.find((l) => l.id === id)
+  ui.poolOver = false
+  ui.dragId = null
+  if (!L || L.d == null) return
+  await store.unplaceLessons([id])
 }
 
 export async function pinLessons(ids) {
@@ -227,6 +248,7 @@ export const ST_COLORS = {
   free: { color: '#1F8A5B', border: 'rgba(31,138,91,0.25)', bg: 'rgba(31,138,91,0.04)', icon: '✓' },
   soft: { color: '#B07C1F', border: 'rgba(176,124,31,0.35)', bg: 'rgba(176,124,31,0.05)', icon: '◐' },
   hard: { color: '#C24536', border: 'rgba(194,69,54,0.35)', bg: 'rgba(194,69,54,0.04)', icon: '⚠' },
+  unfit: { color: '#8A857C', border: 'rgba(0,0,0,0.14)', bg: 'rgba(0,0,0,0.03)', icon: '✕' },
 }
 
 export function closeAllModals() {
@@ -244,4 +266,5 @@ export function closeAllModals() {
   ui.prob = false
   ui.sel = []
   ui.dragId = null
+  ui.poolOver = false
 }

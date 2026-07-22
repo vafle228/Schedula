@@ -4,6 +4,7 @@ import { store } from '../../store/index.js'
 import { confirmDelete } from '../../composables/useConfirm.js'
 import { initials, avatarBg, plural } from '../../utils/format.js'
 import RoomsEditor from '../../components/RoomsEditor.vue'
+import LessonTypesEditor from '../../components/LessonTypesEditor.vue'
 import AvailabilityEditor from '../../components/AvailabilityEditor.vue'
 import AbsenceEditor from '../../components/AbsenceEditor.vue'
 import AddTeacherModal from './AddTeacherModal.vue'
@@ -21,6 +22,7 @@ const ui = reactive({
 })
 
 const secBtns = computed(() => [
+  { k: 'types', label: 'Типы занятий · ' + store.state.topicTypes.length },
   { k: 'majors', label: 'Специальности · ' + store.state.majors.length },
   { k: 'teachers', label: 'Преподаватели · ' + store.state.teachers.length },
   { k: 'rooms', label: 'Аудитории · ' + store.state.rooms.length },
@@ -193,8 +195,15 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
       <span class="head-note mono">мастер-данные · меняются нечасто</span>
     </div>
 
+    <!-- ======= LESSON TYPES ======= -->
+    <div v-if="ui.sec === 'types'" class="work">
+      <div class="panel types-panel">
+        <LessonTypesEditor />
+      </div>
+    </div>
+
     <!-- ======= MAJORS ======= -->
-    <div v-if="ui.sec === 'majors'" class="work">
+    <div v-else-if="ui.sec === 'majors'" class="work">
       <div class="panel side">
         <div class="side-head">
           <div class="side-title-row">
@@ -607,4 +616,5 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 }
 
 .rooms-panel { flex: 1; max-width: 720px; }
+.types-panel { flex: 1; max-width: 740px; }
 </style>

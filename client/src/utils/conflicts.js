@@ -5,6 +5,13 @@
  * where d/s are day index (0 = Пн) and slot index, or null when the lesson
  * sits in the pool. Conflicts are computed, never stored (see data schema).
  */
+import { kindHours } from './kinds.js'
+
+/** True when a lesson of `kind` fits slot index `s` of the given config. */
+function slotFits(kind, s, cfg) {
+  if (!cfg || !cfg.slots || !cfg.slots[s]) return true
+  return kindHours(kind) <= cfg.slots[s].hours
+}
 
 /**
  * Full pass over placed lessons.
@@ -40,9 +47,12 @@ export function analyze(lessons, teachers, cfg) {
 
   // lessons that fell out of the grid after the settings were narrowed
   if (cfg) {
+    const slotsN = cfg.slots ? cfg.slots.length : cfg.slotsPerDay
     placed.forEach((l) => {
-      if ((cfg.activeDays && cfg.activeDays[l.d] === false) || (cfg.slotsPerDay && l.s >= cfg.slotsPerDay)) {
+      if ((cfg.activeDays && cfg.activeDays[l.d] === false) || (slotsN && l.s >= slotsN)) {
         add(l.id, 'hard', 'Пара вне учебной недели или сетки звонков (см. «Настройки»)')
+      } else if (!slotFits(l.kind, l.s, cfg)) {
+        add(l.id, 'hard', 'Занятие 2 ак.ч в слоте на 1 ак.ч (см. «Настройки»)')
       }
     })
   }
@@ -79,10 +89,11 @@ export function analyze(lessons, teachers, cfg) {
  * Status of dropping lesson L into (d, s) with room r.
  * Returns { kind: 'free'|'soft'|'hard', text }.
  */
-export function slotStatus(L, d, s, r, lessons, teachers) {
+export function slotStatus(L, d, s, r, lessons, teachers, cfg) {
   const tMap = {}
   teachers.forEach((t) => { tMap[t.id] = t })
   const tName = tMap[L.t] ? tMap[L.t].name : ''
+  if (!slotFits(L.kind, s, cfg)) return { kind: 'unfit', text: 'Занятие 2 ак.ч не помещается в слот на 1 ак.ч' }
   const others = lessons.filter((x) => x.id !== L.id && x.d === d && x.s === s && !x.orphan)
   if (others.some((x) => x.t === L.t)) return { kind: 'hard', text: 'Преподаватель ' + tName + ' уже занят в этом слоте' }
   if (others.some((x) => x.g === L.g)) return { kind: 'hard', text: 'Группа ' + L.g + ' уже занята в этом слоте' }

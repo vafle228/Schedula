@@ -24,8 +24,8 @@ const curAsg = computed(() => {
 
 const dayOpts = computed(() => dayIdxs.value.map((i) => ({ v: String(i), label: ALL_DAYS[i] })))
 const slotOpts = computed(() => Array.from({ length: slotsN.value }, (_, i) => {
-  const b = bells.value[i] || { from: '', to: '' }
-  return { v: String(i), label: (i + 1) + ' пара · ' + b.from + '–' + b.to }
+  const b = bells.value[i] || { from: '', to: '', hours: 2 }
+  return { v: String(i), label: (i + 1) + ' пара · ' + b.from + '–' + b.to + ' · ' + b.hours + ' ак.ч' }
 }))
 const roomOpts = computed(() => store.state.rooms.map((r) => ({ v: r.id, label: r.id + ', ' + r.type + ', ' + r.capacity })))
 
@@ -35,11 +35,11 @@ const status = computed(() => {
   let probe
   if (isEdit.value) {
     if (!editL.value) return { kind: 'free', text: '' }
-    probe = { id: f.id, t: editL.value.t, g: editL.value.g, room: f.r }
+    probe = { id: f.id, t: editL.value.t, g: editL.value.g, room: f.r, kind: f.kind }
   } else {
     const a = curAsg.value && curAsg.value.a
     if (!a) return { kind: 'free', text: '' }
-    probe = { id: '__new', t: a.teacherId, g: a.discipline.groupId, room: f.r }
+    probe = { id: '__new', t: a.teacherId, g: a.discipline.groupId, room: f.r, kind: f.kind }
   }
   return statusFor(probe, parseInt(f.d), parseInt(f.s), f.r)
 })
@@ -54,6 +54,7 @@ async function save() {
   const f = lf.value
   const topic = f.topic.trim()
   if (!topic) { f.err = 'Укажите тему занятия'; return }
+  if (f.placed && status.value.kind === 'unfit') { f.err = 'Слот на 1 ак.ч — выберите слот на 2 ак.ч'; return }
   const question = f.question.trim()
 
   if (isEdit.value) {

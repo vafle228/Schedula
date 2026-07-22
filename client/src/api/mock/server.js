@@ -67,7 +67,67 @@ on('PATCH', '/periods/:id', (p, q, body) => {
   const per = db.periods[p.id]
   if (!per) throw new ApiError(404, 'Период не найден')
   Object.assign(per, body)
+  if (body.slots) per.slotsPerDay = body.slots.length
   return per
+})
+
+/* ----- semesters (Настройки) ----- */
+on('GET', '/semesters', () => db.semesters)
+on('POST', '/semesters', (p, q, body) => {
+  const s = {
+    id: 'sem' + Date.now(),
+    name: body.name,
+    from: body.from,
+    to: body.to,
+    status: 'draft',
+    current: false,
+  }
+  db.semesters.push(s)
+  return s
+})
+on('POST', '/semesters/:id/activate', (p) => {
+  const target = db.semesters.find((s) => s.id === p.id)
+  if (!target) throw new ApiError(404, 'Семестр не найден')
+  // only current-year seasons ('fall'/'spring') carry real data
+  if (target.id === 'fall' || target.id === 'spring') {
+    db.semesters.forEach((s) => {
+      if (s.current) s.status = s.id === target.id ? 'active' : 'draft'
+    })
+  }
+  return db.semesters
+})
+
+/* ----- topic types (Справочник «Типы занятий») ----- */
+on('GET', '/topic-types', () => db.topicTypes.map((t) => ({
+  ...t,
+  used: db.disciplines.reduce((n, d) => n + d.topics.filter((tp) => tp.kind === t.k).length, 0),
+})))
+on('POST', '/topic-types', (p, q, body) => {
+  const base = (body.label || 'тип').toLowerCase().replace(/[^a-zа-я0-9]+/gi, '').slice(0, 6) || 'type'
+  let k = base
+  let i = 1
+  while (db.topicTypes.some((t) => t.k === k)) k = base + (++i)
+  const t = {
+    k,
+    label: body.label,
+    short: body.short || (body.label || '').slice(0, 4) + '.',
+    color: body.color,
+    acHours: body.acHours || 2,
+  }
+  db.topicTypes.push(t)
+  return t
+})
+on('PATCH', '/topic-types/:k', (p, q, body) => {
+  const t = db.topicTypes.find((x) => x.k === p.k)
+  if (!t) throw new ApiError(404, 'Тип занятия не найден')
+  Object.assign(t, body)
+  return t
+})
+on('DELETE', '/topic-types/:k', (p) => {
+  const used = db.disciplines.some((d) => d.topics.some((tp) => tp.kind === p.k))
+  if (used) throw new ApiError(409, 'Тип используется в темах')
+  db.topicTypes = db.topicTypes.filter((x) => x.k !== p.k)
+  return null
 })
 
 /* ----- majors / groups (Справочники) ----- */

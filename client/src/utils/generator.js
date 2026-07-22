@@ -27,9 +27,10 @@ export function computeGeneration(enriched, teachers, cfg, mode) {
     let softBest = null
     outer:
     for (const d of dayIdxs) {
-      for (let s = 0; s < cfg.slotsPerDay; s++) {
-        const st = slotStatus(L, d, s, null, lessons, teachers)
-        if (st.kind === 'hard') continue
+      const slotsN = cfg.slots ? cfg.slots.length : cfg.slotsPerDay
+      for (let s = 0; s < slotsN; s++) {
+        const st = slotStatus(L, d, s, null, lessons, teachers, cfg)
+        if (st.kind === 'hard' || st.kind === 'unfit') continue
         if (st.kind === 'soft') { if (!softBest) softBest = [d, s]; continue }
         L.d = d
         L.s = s

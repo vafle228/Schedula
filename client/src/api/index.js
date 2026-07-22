@@ -8,6 +8,17 @@ export const api = {
   getPeriods: () => request('GET', '/periods'),
   patchPeriod: (id, body) => request('PATCH', `/periods/${id}`, body),
 
+  /* semesters */
+  getSemesters: () => request('GET', '/semesters'),
+  createSemester: (body) => request('POST', '/semesters', body),
+  activateSemester: (id) => request('POST', `/semesters/${id}/activate`),
+
+  /* topic types */
+  getTopicTypes: () => request('GET', '/topic-types'),
+  createTopicType: (body) => request('POST', '/topic-types', body),
+  patchTopicType: (k, body) => request('PATCH', `/topic-types/${encodeURIComponent(k)}`, body),
+  deleteTopicType: (k) => request('DELETE', `/topic-types/${encodeURIComponent(k)}`),
+
   /* majors & groups */
   getMajors: () => request('GET', '/majors'),
   createMajor: (body) => request('POST', '/majors', body),

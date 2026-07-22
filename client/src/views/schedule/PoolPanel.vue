@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { store } from '../../store/index.js'
 import { kindOf, KINDS } from '../../utils/kinds.js'
 import InfoDot from '../../components/InfoDot.vue'
-import { ui, entUnplaced, poolCards, openDlg, openLf } from './useSchedule.js'
+import { ui, entUnplaced, poolCards, openDlg, openLf, dragPlaced, unplaceToPool } from './useSchedule.js'
 
 const searchEl = ref(null)
 defineExpose({ focusSearch: () => searchEl.value && searchEl.value.focus() })
@@ -30,10 +30,32 @@ function onDragStart(l, e) {
   e.dataTransfer.effectAllowed = 'move'
   ui.dragId = l.id
 }
+
+/* return-to-pool drop target (Итерация 8) — only for a placed lesson */
+function onPoolDragOver(e) {
+  if (!dragPlaced.value) return
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'move'
+  if (!ui.poolOver) ui.poolOver = true
+}
+function onPoolDragLeave(e) {
+  if (e.currentTarget.contains(e.relatedTarget)) return
+  ui.poolOver = false
+}
+function onPoolDrop(e) {
+  if (!dragPlaced.value) return
+  e.preventDefault()
+  unplaceToPool(ui.dragId)
+}
 </script>
 
 <template>
-  <div class="panel pool">
+  <div
+    class="panel pool"
+    @dragover="onPoolDragOver"
+    @dragleave="onPoolDragLeave"
+    @drop="onPoolDrop"
+  >
     <div class="pool-head">
       <span class="pool-title">Занятия</span>
       <span class="pool-count mono">{{ entUnplaced.length }}</span>
@@ -59,6 +81,9 @@ function onDragStart(l, e) {
       </div>
     </div>
     <div class="pool-list">
+      <div v-if="dragPlaced" class="drop-zone" :class="{ over: ui.poolOver }">
+        <span class="dz-ico">↩</span> Отпустите, чтобы снять с сетки и вернуть в пул
+      </div>
       <div
         v-for="c in cards"
         :key="c.l.id"
@@ -112,6 +137,24 @@ function onDragStart(l, e) {
 .kind-filter { font-size: 12px; }
 
 .pool-list { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+
+.drop-zone {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+  text-align: center;
+  border: 1.5px dashed rgba(31, 138, 91, 0.5);
+  background: rgba(31, 138, 91, 0.05);
+  color: #166A45;
+  border-radius: 8px;
+  padding: 11px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.drop-zone.over { border-color: #1F8A5B; background: rgba(31, 138, 91, 0.14); }
+.dz-ico { font-size: 14px; line-height: 1; }
 .pool-card { border-radius: var(--r-lg); padding: 8px 11px; cursor: grab; display: flex; flex-direction: column; gap: 4px; }
 .pool-card:hover { box-shadow: 0 2px 8px rgba(0, 0, 0, 0.10); }
 .pc-top { display: flex; align-items: center; gap: 6px; }
