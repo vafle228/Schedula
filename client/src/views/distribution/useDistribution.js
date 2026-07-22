@@ -135,21 +135,9 @@ export function resetFilters() {
 
 /* ---------- lesson kinds ---------- */
 
-/** Catalogue of lesson types. Add rows here to offer more kinds everywhere. */
-export const KINDS = [
-  { k: 'lec', label: 'Лекция', short: 'Лек.', color: '#3B62C4', radius: '50%' },
-  { k: 'prac', label: 'Практика', short: 'Практ.', color: '#1F8A5B', radius: '2px' },
-  { k: 'lab', label: 'Лабораторная', short: 'Лаб.', color: '#B45309', radius: '2px' },
-  { k: 'sem', label: 'Семинар', short: 'Сем.', color: '#8A3FFC', radius: '50%' },
-  { k: 'consult', label: 'Консультация', short: 'Конс.', color: '#0E7490', radius: '3px' },
-  { k: 'exam', label: 'Экзамен', short: 'Экз.', color: '#C0392B', radius: '3px' },
-  { k: 'course', label: 'Курсовая', short: 'Курс.', color: '#7A756C', radius: '3px' },
-]
-
-const KIND_MAP = Object.fromEntries(KINDS.map((x) => [x.k, x]))
-const kindOf = (k) => KIND_MAP[k] || KINDS[0]
-
-export const kindLabel = (k) => kindOf(k).label
-export const kindColor = (k) => kindOf(k).color
-export const kindShort = (k) => kindOf(k).short
-export const dotRadius = (k) => kindOf(k).radius
+/**
+ * Lesson-type catalogue lives in utils/kinds.js — the single source shared with
+ * «Расписание». Re-exported here (as the array `KINDS`) so this module's views
+ * keep their existing imports. Add new kinds in utils/kinds.js.
+ */
+export { KIND_LIST as KINDS, kindLabel, kindColor, kindShort, dotRadius } from '../../utils/kinds.js'

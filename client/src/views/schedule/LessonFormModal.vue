@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { store } from '../../store/index.js'
 import { confirmDelete } from '../../composables/useConfirm.js'
-import { KINDS, kindOf, ALL_DAYS } from '../../utils/kinds.js'
+import { KINDS, ALL_DAYS } from '../../utils/kinds.js'
 import ModalWindow from '../../components/ModalWindow.vue'
 import InfoDot from '../../components/InfoDot.vue'
 import { ui, dayIdxs, slotsN, bells, statusFor, asgOptions, flash, ST_COLORS } from './useSchedule.js'
@@ -143,15 +143,11 @@ async function del() {
 
       <div class="fld">
         <span class="field-label">ТИП ЗАНЯТИЯ</span>
-        <div class="kind-btns">
-          <button
-            v-for="(K, k) in KINDS"
-            :key="k"
-            class="pick-soft kind-btn"
-            :class="{ on: lf.kind === k }"
-            :style="{ fontWeight: lf.kind === k ? 600 : 400 }"
-            @click="lf.kind = k; lf.err = ''"
-          >{{ K.mark }} {{ K.label }}</button>
+        <div class="select-wrap">
+          <select v-model="lf.kind" class="input input--white" @change="lf.err = ''">
+            <option v-for="(K, k) in KINDS" :key="k" :value="k">{{ K.label }}</option>
+          </select>
+          <span class="chev">▾</span>
         </div>
       </div>
 
@@ -248,8 +244,6 @@ async function del() {
 }
 .asg-name { font-size: 13px; font-weight: 600; flex: 1; }
 .asg-sub { font-size: 11.5px; color: var(--muted); }
-.kind-btns { display: flex; gap: 5px; flex-wrap: wrap; }
-.kind-btn { font-size: 12px; padding: 6px 11px; }
 .qarea { resize: vertical; min-height: 44px; }
 .place-btns { display: flex; gap: 5px; }
 .place-btn { flex: 1; padding: 7px 0; }

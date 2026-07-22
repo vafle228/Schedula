@@ -8,12 +8,9 @@ import { ui, entUnplaced, poolCards, openDlg, openLf } from './useSchedule.js'
 const searchEl = ref(null)
 defineExpose({ focusSearch: () => searchEl.value && searchEl.value.focus() })
 
-const chips = computed(() => [
-  { k: 'all', label: 'Все', dot: '' },
-  { k: 'lec', label: 'Лекции', dot: KINDS.lec.dot },
-  { k: 'prac', label: 'Практики', dot: KINDS.prac.dot },
-  { k: 'sem', label: 'Семинары', dot: KINDS.sem.dot },
-  { k: 'lab', label: 'Лаб.', dot: KINDS.lab.dot },
+const kindOpts = computed(() => [
+  { k: 'all', label: 'Все типы' },
+  ...Object.entries(KINDS).map(([k, K]) => ({ k, label: K.label })),
 ])
 
 const cards = computed(() => poolCards.value.map((l) => {
@@ -54,16 +51,11 @@ function onDragStart(l, e) {
         placeholder="Поиск: дисциплина, ФИО…  ( / )"
         style="font-size: 12px"
       >
-      <div class="chips">
-        <button
-          v-for="c in chips"
-          :key="c.k"
-          class="chip-btn"
-          :class="{ on: ui.kindF === c.k }"
-          @click="ui.kindF = c.k"
-        >
-          <span v-if="c.dot" class="chip-dot" :style="{ background: c.dot }"></span>{{ c.label }}
-        </button>
+      <div class="select-wrap">
+        <select v-model="ui.kindF" class="kind-filter">
+          <option v-for="o in kindOpts" :key="o.k" :value="o.k">{{ o.label }}</option>
+        </select>
+        <span class="chev">▾</span>
       </div>
     </div>
     <div class="pool-list">
@@ -117,21 +109,7 @@ function onDragStart(l, e) {
   gap: 6px;
   border-bottom: 1px solid var(--line-soft);
 }
-.chips { display: flex; gap: 4px; flex-wrap: wrap; }
-.chip-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid var(--line-strong);
-  background: var(--panel);
-  color: var(--sub);
-  font: 500 11px var(--sans);
-  padding: 3px 9px;
-  border-radius: 11px;
-  cursor: pointer;
-}
-.chip-btn.on { border-color: var(--fg); background: var(--fg); color: #FFFFFF; }
-.chip-dot { width: 8px; height: 8px; border-radius: 2px; }
+.kind-filter { font-size: 12px; }
 
 .pool-list { flex: 1; overflow-y: auto; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
 .pool-card { border-radius: var(--r-lg); padding: 8px 11px; cursor: grab; display: flex; flex-direction: column; gap: 4px; }
