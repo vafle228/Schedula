@@ -5,13 +5,18 @@
  */
 import { reactive, computed } from 'vue'
 import { store } from '../../store/index.js'
-import { slotStatus } from '../../utils/conflicts.js'
+import { slotStatus, isHoliday } from '../../utils/conflicts.js'
 import { ALL_DAYS, kindHours } from '../../utils/kinds.js'
 import { slotBells } from '../../utils/slots.js'
+
+/** Weeks shown per page in the week pager (Расписание v8). */
+export const WEEK_PAGE = 6
 
 export const ui = reactive({
   view: 'group', // 'group' | 'teacher' | 'room'
   ent: { group: 'ИС-31', teacher: 't1', room: '214' },
+  week: 1, // 1-based, current week of the semester
+  weekPage: 0,
   q: '',
   kindF: 'all',
   sel: [],
@@ -50,6 +55,52 @@ export const slots = computed(() => cfg.value.slots || [])
 export const slotsN = computed(() => slots.value.length || cfg.value.slotsPerDay || 0)
 export const bells = computed(() => slotBells(cfg.value.slots, cfg.value.acadMin || 45))
 
+/* ---------- weeks (Расписание v8) ---------- */
+
+export const weeksCount = computed(() => cfg.value.weeksCount || 16)
+
+/** True when (week, day) is a holiday in the current period. */
+export function isHol(w, d) {
+  return isHoliday(cfg.value, w, d)
+}
+
+/** Date "dd.mm" for week (1-based) and day index, counted from period start. */
+export function dateFor(w, d) {
+  const base = cfg.value.startDate
+  if (!base) return ''
+  const dt = new Date(base + 'T00:00:00')
+  dt.setDate(dt.getDate() + (w - 1) * 7 + d)
+  return String(dt.getDate()).padStart(2, '0') + '.' + String(dt.getMonth() + 1).padStart(2, '0')
+}
+
+/** Pager of week buttons for the current page. */
+export const weekBtns = computed(() => {
+  const total = weeksCount.value
+  const from = ui.weekPage * WEEK_PAGE + 1
+  const to = Math.min(total, from + WEEK_PAGE - 1)
+  const out = []
+  for (let n = from; n <= to; n++) {
+    const hol = dayIdxs.value.some((d) => isHol(n, d))
+    out.push({ n, hol, on: n === ui.week })
+  }
+  return out
+})
+export const weekPagesN = computed(() => Math.ceil(weeksCount.value / WEEK_PAGE))
+export const weekRangeLabel = computed(() => {
+  const from = ui.weekPage * WEEK_PAGE + 1
+  const to = Math.min(weeksCount.value, from + WEEK_PAGE - 1)
+  return from + '–' + to + ' из ' + weeksCount.value
+})
+
+export function selectWeek(n) {
+  ui.week = n
+  ui.weekPage = Math.floor((n - 1) / WEEK_PAGE)
+  ui.cursor = null
+  ui.sel = []
+}
+export function weekPagePrev() { if (ui.weekPage > 0) ui.weekPage-- }
+export function weekPageNext() { if (ui.weekPage < weekPagesN.value - 1) ui.weekPage++ }
+
 /* ---------- lessons ---------- */
 
 export const enriched = store.enriched
@@ -57,9 +108,12 @@ export const analysis = store.scheduleAnalysis
 
 export const visible = computed(() => enriched.value.filter(entMatch))
 
+/** Placed lessons matching the entity in the current week — what the grid draws. */
+export const weekVisible = computed(() => visible.value.filter((l) => l.d != null && l.w === ui.week))
+
 export function entMatch(l) {
   if (ui.view === 'group') return l.g === ui.ent.group
-  if (ui.view === 'teacher') return l.t === ui.ent.teacher
+  if (ui.view === 'teacher') return (l.subBy || l.t) === ui.ent.teacher
   return l.room === ui.ent.room
 }
 
@@ -119,20 +173,25 @@ export const poolCards = computed(() => {
 
 /* ---------- placement ---------- */
 
-export function statusFor(L, d, s, r) {
-  return slotStatus(L, d, s, r, enriched.value, store.state.teachers, cfg.value)
+export function statusFor(L, w, d, s, r) {
+  return slotStatus(L, w, d, s, r, enriched.value, store.state.teachers, cfg.value)
 }
 
-export async function place(id, d, s, room) {
+export async function place(id, w, d, s, room) {
   const L = enriched.value.find((l) => l.id === id)
   if (!L) return
   const slot = cfg.value.slots && cfg.value.slots[s]
   if (slot && kindHours(L.kind) > slot.hours) return // 2 ак.ч нельзя в слот на 1 ак.ч
+  if (isHol(w, d)) return // праздник — слот не принимает пару
   if (ui.view === 'group' && L.g !== ui.ent.group) ui.ent.group = L.g
   ui.dragId = null
   ui.sel = []
-  await store.placeLesson(id, d, s, room)
+  await store.placeLesson(id, w, d, s, room)
   flash(id)
+}
+
+export async function setSubstitute(id, subBy) {
+  await store.setSubstitute(id, subBy)
 }
 
 export async function removeLessons(ids) {
@@ -168,6 +227,7 @@ export function openDlg(id) {
   if (!L) return
   ui.dlg = {
     id,
+    w: String(L.w != null ? L.w : ui.week),
     d: String(L.d != null ? L.d : dayIdxs.value[0] || 0),
     s: String(L.s != null ? L.s : 0),
     r: L.room,
@@ -212,9 +272,13 @@ export function openLf(pos, id) {
       topic: L.topic || '',
       question: L.question || '',
       placed: L.d != null,
+      w: String(L.w != null ? L.w : ui.week),
       d: String(L.d != null ? L.d : dayIdxs.value[0] || 0),
       s: String(L.s != null ? L.s : 0),
       r: L.room,
+      teacher: L.subBy || L.t, // effective teacher; ≠ штатный ⇒ замена
+      staffTeacher: L.t,
+      pin: !!L.pin,
       err: '',
     }
     ui.sel = []
@@ -234,6 +298,7 @@ export function openLf(pos, id) {
     topic: '',
     question: '',
     placed: !!pos,
+    w: String(pos ? pos.w || ui.week : ui.week),
     d: String(pos ? pos.d : dayIdxs.value[0] || 0),
     s: String(pos ? pos.s : 0),
     r: opts[asg].defaultRoom,

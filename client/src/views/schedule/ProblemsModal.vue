@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { store } from '../../store/index.js'
 import { ALL_DAYS } from '../../utils/kinds.js'
 import ModalWindow from '../../components/ModalWindow.vue'
-import { ui, analysis, flash } from './useSchedule.js'
+import { ui, analysis, flash, selectWeek } from './useSchedule.js'
 
 const items = computed(() => {
   const out = []
@@ -22,7 +22,7 @@ const items = computed(() => {
       border: isHard ? 'rgba(194,69,54,0.35)' : 'rgba(176,124,31,0.35)',
       bg: isHard ? 'rgba(194,69,54,0.04)' : 'rgba(176,124,31,0.04)',
       text: issues.map((x) => x.text).join('; '),
-      loc: l.d != null ? ALL_DAYS[l.d] + ', ' + (l.s + 1) + ' пара, ' + (t ? t.name : '') : 'в пуле',
+      loc: l.d != null ? 'Н' + l.w + ', ' + ALL_DAYS[l.d] + ', ' + (l.s + 1) + ' пара, ' + (t ? t.name : '') : 'в пуле',
     })
   })
   out.sort((a, b) => (a.hard ? 0 : 1) - (b.hard ? 0 : 1))
@@ -33,6 +33,7 @@ function go(item) {
   const l = item.l
   ui.view = 'group'
   ui.ent.group = l.g
+  if (l.w != null) selectWeek(l.w)
   ui.cursor = l.d != null ? { d: l.d, s: l.s } : null
   ui.sel = [l.id]
   ui.prob = false

@@ -16,7 +16,7 @@ const state = reactive({
   loaded: false,
   period: 'fall',
   periods: { fall: null, spring: null },
-  semesters: [],
+  years: [],
   topicTypes: [],
   majors: [],
   groups: [],
@@ -35,13 +35,6 @@ const state = reactive({
 })
 
 /* ---------- lookups ---------- */
-
-/** Keep the two current-year semester rows in sync with the active season. */
-function syncSemesterStatus() {
-  state.semesters.forEach((s) => {
-    if (s.current) s.status = s.id === state.period ? 'active' : 'draft'
-  })
-}
 
 const teacherById = (id) => state.teachers.find((t) => t.id === id)
 const roomById = (id) => state.rooms.find((r) => r.id === id)
@@ -69,11 +62,15 @@ const enriched = computed(() => {
       id: l.id,
       g: l.groupId,
       disc: discName[l.disciplineId] || '',
+      disciplineId: l.disciplineId,
+      topicId: l.topicId,
       t: l.teacherId,
       room: l.roomId,
       kind: l.kind,
+      w: l.week,
       d: l.day,
       s: l.slot,
+      subBy: l.subBy || null,
       pin: l.pin,
       manual: l.manual,
       ni: l.ni,
@@ -166,12 +163,12 @@ export const store = {
 
   async init() {
     if (state.loaded) return
-    const [periods, semesters, topicTypes, majors, groups, teachers, rooms, disciplines, assignments, lessons] = await Promise.all([
-      api.getPeriods(), api.getSemesters(), api.getTopicTypes(), api.getMajors(), api.getGroups(),
+    const [periods, years, topicTypes, majors, groups, teachers, rooms, disciplines, assignments, lessons] = await Promise.all([
+      api.getPeriods(), api.getYears(), api.getTopicTypes(), api.getMajors(), api.getGroups(),
       api.getTeachers(), api.getRooms(), api.getDisciplines(), api.getAssignments(), api.getLessons(),
     ])
     periods.forEach((p) => { state.periods[p.id] = p })
-    state.semesters = semesters
+    state.years = years
     state.topicTypes = topicTypes
     applyTopicTypes(topicTypes)
     state.majors = majors
@@ -187,25 +184,26 @@ export const store = {
   setPeriod(p) {
     if (state.period === p) return
     state.period = p
-    // per-semester undo — schedule snapshots do not carry across seasons
+    // per-season undo — schedule snapshots do not carry across seasons
     state.schedUndo = []
     state.schedRedo = []
     state.newIds = []
-    syncSemesterStatus()
   },
 
-  /* ===== Настройки: семестры ===== */
+  /* ===== Настройки: учебные годы ===== */
 
-  async activateSemester(id) {
-    const sem = state.semesters.find((s) => s.id === id)
-    if (!sem || sem.status === 'active') return
-    state.semesters = await api.activateSemester(id)
-    if (sem.id === 'fall' || sem.id === 'spring') store.setPeriod(sem.id)
+  async activateYear(id) {
+    const y = state.years.find((x) => x.id === id)
+    if (!y || y.status === 'active') return
+    state.years = await api.activateYear(id)
   },
-  async createSemester(body) {
-    const s = await api.createSemester(body)
-    state.semesters.push(s)
-    return s
+  async createYear(body) {
+    const y = await api.createYear(body)
+    state.years.push(y)
+    return y
+  },
+  async deleteYear(id) {
+    state.years = await api.deleteYear(id)
   },
 
   /* ===== Настройки: типы занятий ===== */
@@ -288,9 +286,9 @@ export const store = {
 
   /* ===== Расписание: занятия ===== */
 
-  async placeLesson(id, day, slot, roomId) {
+  async placeLesson(id, week, day, slot, roomId) {
     schedSnapshot()
-    const body = { day, slot }
+    const body = { week, day, slot }
     if (roomId) body.roomId = roomId
     const l = await api.patchLesson(id, body)
     upsertLesson(l)
@@ -300,8 +298,15 @@ export const store = {
   async unplaceLessons(ids) {
     if (!ids.length) return
     schedSnapshot()
-    const res = await Promise.all(ids.map((id) => api.patchLesson(id, { day: null, slot: null, pin: false })))
+    const res = await Promise.all(ids.map((id) => api.patchLesson(id, { week: null, day: null, slot: null, subBy: null, pin: false })))
     res.forEach(upsertLesson)
+  },
+
+  /** Set (or clear with null) the substitute teacher of a placed occurrence. */
+  async setSubstitute(id, subBy) {
+    schedSnapshot()
+    const l = await api.patchLesson(id, { subBy: subBy || null })
+    upsertLesson(l)
   },
 
   async togglePin(ids) {

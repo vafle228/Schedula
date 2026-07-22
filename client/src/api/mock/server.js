@@ -71,30 +71,37 @@ on('PATCH', '/periods/:id', (p, q, body) => {
   return per
 })
 
-/* ----- semesters (Настройки) ----- */
-on('GET', '/semesters', () => db.semesters)
-on('POST', '/semesters', (p, q, body) => {
-  const s = {
-    id: 'sem' + Date.now(),
+/* ----- academic years (Настройки) ----- */
+on('GET', '/years', () => db.years)
+on('POST', '/years', (p, q, body) => {
+  const y = {
+    id: 'y' + Date.now(),
     name: body.name,
-    from: body.from,
-    to: body.to,
+    autFrom: body.autFrom,
+    autTo: body.autTo,
+    sprFrom: body.sprFrom,
+    sprTo: body.sprTo,
     status: 'draft',
-    current: false,
   }
-  db.semesters.push(s)
-  return s
+  db.years.push(y)
+  return y
 })
-on('POST', '/semesters/:id/activate', (p) => {
-  const target = db.semesters.find((s) => s.id === p.id)
-  if (!target) throw new ApiError(404, 'Семестр не найден')
-  // only current-year seasons ('fall'/'spring') carry real data
-  if (target.id === 'fall' || target.id === 'spring') {
-    db.semesters.forEach((s) => {
-      if (s.current) s.status = s.id === target.id ? 'active' : 'draft'
-    })
-  }
-  return db.semesters
+on('POST', '/years/:id/activate', (p) => {
+  const target = db.years.find((y) => y.id === p.id)
+  if (!target) throw new ApiError(404, 'Учебный год не найден')
+  // one active year at a time; the previously active one falls back to draft
+  db.years.forEach((y) => {
+    if (y.id === target.id) y.status = 'active'
+    else if (y.status === 'active') y.status = 'draft'
+  })
+  return db.years
+})
+on('DELETE', '/years/:id', (p) => {
+  const target = db.years.find((y) => y.id === p.id)
+  if (!target) throw new ApiError(404, 'Учебный год не найден')
+  if (target.status === 'active') throw new ApiError(409, 'Активный год удалить нельзя')
+  db.years = db.years.filter((y) => y.id !== p.id)
+  return db.years
 })
 
 /* ----- topic types (Справочник «Типы занятий») ----- */
@@ -347,8 +354,10 @@ on('POST', '/lessons', (p, q, body) => {
     roomId: body.roomId,
     kind: body.kind,
     period: body.period,
+    week: body.week != null ? body.week : null,
     day: body.day != null ? body.day : null,
     slot: body.slot != null ? body.slot : null,
+    subBy: body.subBy || null,
     pin: !!body.pin,
     manual: body.manual !== false,
     ni: body.ni || 1,
@@ -428,7 +437,7 @@ on('POST', '/schedule/generate/:id/accept', (p) => {
   if (!job) throw new ApiError(404, 'Задача не найдена')
   job.result.placements.forEach((pl) => {
     const l = db.lessons.find((x) => x.id === pl.id)
-    if (l) { l.day = pl.d; l.slot = pl.s }
+    if (l) { l.week = pl.w; l.day = pl.d; l.slot = pl.s }
   })
   const newIds = job.result.newIds
   delete db.jobs[p.id]

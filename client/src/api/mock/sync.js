@@ -60,7 +60,7 @@ export function syncLessonsForTopic(db, topicId) {
     db.lessons.push({
       id: 'l' + db.counters.l, topicId, disciplineId: discipline.id, groupId: discipline.groupId,
       teacherId: asg.teacherId, roomId: defaultRoom(db, topic, discipline), kind: topic.kind,
-      period: discipline.period, day: null, slot: null, pin: false, manual: false,
+      period: discipline.period, week: null, day: null, slot: null, subBy: null, pin: false, manual: false,
       ni: 0, nt: target, topicLabel: '', question: '',
     })
   }
@@ -85,8 +85,10 @@ export function enrichDbLessons(db, period) {
       t: l.teacherId,
       room: l.roomId,
       kind: l.kind,
+      w: l.week,
       d: l.day,
       s: l.slot,
+      subBy: l.subBy || null,
       pin: l.pin,
       orphan: !db.assignments[l.topicId],
     }))

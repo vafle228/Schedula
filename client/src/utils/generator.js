@@ -2,8 +2,10 @@ import { slotStatus } from './conflicts.js'
 
 /**
  * Draft schedule generator (greedy). Operates on enriched lessons
- * ({ id, g, disc, t, room, kind, d, s, pin, orphan }) and returns new
- * placements without touching the input.
+ * ({ id, g, disc, t, room, kind, w, d, s, subBy, pin, orphan }) and returns new
+ * placements ({ id, w, d, s }) without touching the input. Занятия
+ * распределяются по неделям семестра: для каждой пары ищется самый ранний
+ * свободный слот (неделя → день → слот), праздники и узкие слоты пропускаются.
  *
  * mode 'rebuild' — unplace everything except pinned/orphaned, then fill;
  * mode 'fill'    — keep placed lessons, only place the pool.
@@ -12,10 +14,12 @@ export function computeGeneration(enriched, teachers, cfg, mode) {
   const lessons = JSON.parse(JSON.stringify(enriched))
   const dayIdxs = []
   cfg.activeDays.forEach((on, i) => { if (on) dayIdxs.push(i) })
+  const weeksN = cfg.weeksCount || 16
+  const slotsN = cfg.slots ? cfg.slots.length : cfg.slotsPerDay
   let moved = 0
   if (mode === 'rebuild') {
     lessons.forEach((l) => {
-      if (l.d != null && !l.pin && !l.orphan) { l.d = null; l.s = null; moved++ }
+      if (l.d != null && !l.pin && !l.orphan) { l.w = null; l.d = null; l.s = null; moved++ }
     })
   }
   const todo = lessons
@@ -26,28 +30,31 @@ export function computeGeneration(enriched, teachers, cfg, mode) {
   todo.forEach((L) => {
     let softBest = null
     outer:
-    for (const d of dayIdxs) {
-      const slotsN = cfg.slots ? cfg.slots.length : cfg.slotsPerDay
-      for (let s = 0; s < slotsN; s++) {
-        const st = slotStatus(L, d, s, null, lessons, teachers, cfg)
-        if (st.kind === 'hard' || st.kind === 'unfit') continue
-        if (st.kind === 'soft') { if (!softBest) softBest = [d, s]; continue }
-        L.d = d
-        L.s = s
-        newIds.push(L.id)
-        break outer
+    for (let w = 1; w <= weeksN; w++) {
+      for (const d of dayIdxs) {
+        for (let s = 0; s < slotsN; s++) {
+          const st = slotStatus(L, w, d, s, null, lessons, teachers, cfg)
+          if (st.kind === 'hard' || st.kind === 'unfit') continue
+          if (st.kind === 'soft') { if (!softBest) softBest = [w, d, s]; continue }
+          L.w = w
+          L.d = d
+          L.s = s
+          newIds.push(L.id)
+          break outer
+        }
       }
     }
     if (L.d == null && softBest) {
-      L.d = softBest[0]
-      L.s = softBest[1]
+      L.w = softBest[0]
+      L.d = softBest[1]
+      L.s = softBest[2]
       newIds.push(L.id)
       softUsed++
     }
   })
   const unplaced = lessons.filter((l) => l.d == null)
   return {
-    placements: lessons.map((l) => ({ id: l.id, d: l.d, s: l.s })),
+    placements: lessons.map((l) => ({ id: l.id, w: l.w, d: l.d, s: l.s })),
     newIds,
     placedN: newIds.length,
     unplacedN: unplaced.length,

@@ -30,16 +30,3 @@ export function slotBells(slots, acadMin) {
     hours: s.hours,
   }))
 }
-
-/**
- * Auto-fill slot start times from the day start, break and long break.
- * Slot composition (how many hours each) is kept as-is; only starts change.
- */
-export function recalcStarts(slots, { start, brk, long, longAfter }, acadMin) {
-  let t = toMin(start)
-  return slots.map((s, i) => {
-    const row = { start: toStr(t), hours: s.hours }
-    t += slotLen(s.hours, acadMin) + (i + 1 === longAfter ? long : brk)
-    return row
-  })
-}

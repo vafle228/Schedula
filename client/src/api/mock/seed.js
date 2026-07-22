@@ -6,10 +6,15 @@
 
 import { DEFAULT_TOPIC_TYPES } from '../../utils/kinds.js'
 
-/** 5 равномерных слотов: 4×2 ак.ч + 1×1 ак.ч (Итерация 6.4, Настройки v2). */
+/**
+ * 5 слотов: 4×2 ак.ч + 1×1 ак.ч (Настройки v4). У слота есть перемена `brk`
+ * после него (минуты); у последнего слота она не используется. Начала считаются
+ * каскадом: начало[i] = конец[i-1] + перемена[i-1].
+ */
 const DEFAULT_SLOTS = [
-  { start: '08:30', hours: 2 }, { start: '10:20', hours: 2 }, { start: '12:25', hours: 2 },
-  { start: '14:10', hours: 2 }, { start: '16:00', hours: 1 },
+  { start: '08:30', hours: 2, brk: 15 }, { start: '10:20', hours: 2, brk: 30 },
+  { start: '12:25', hours: 2, brk: 10 }, { start: '14:10', hours: 2, brk: 15 },
+  { start: '16:00', hours: 1, brk: 15 },
 ]
 
 export function buildSeed() {
@@ -18,34 +23,37 @@ export function buildSeed() {
       id: 'fall',
       dateFrom: '01.09.2026',
       dateTo: '27.12.2026',
+      startDate: '2026-09-01',
       activeDays: [true, true, true, true, true, false, false],
       acadMin: 45,
       slots: DEFAULT_SLOTS.map((s) => ({ ...s })),
       slotsPerDay: DEFAULT_SLOTS.length,
-      ag: { start: '08:30', brk: 15, long: 30, longAfter: 2 },
       weeksCount: 16,
+      // праздничные дни как «неделя-день» (0 = Пн); колонки гасятся в сетке
+      holidays: ['3-2', '11-0'],
     },
     spring: {
       id: 'spring',
       dateFrom: '09.02.2027',
       dateTo: '31.05.2027',
+      startDate: '2027-02-08',
       activeDays: [true, true, true, true, true, false, false],
       acadMin: 45,
       slots: DEFAULT_SLOTS.map((s) => ({ ...s })),
       slotsPerDay: DEFAULT_SLOTS.length,
-      ag: { start: '08:30', brk: 15, long: 30, longAfter: 2 },
       weeksCount: 16,
+      holidays: ['2-4', '10-0'],
     },
   }
 
-  // Явная сущность «семестр» (Итерация 6.1). Строки текущего года ('fall'/'spring')
-  // переключают активный сезон; прошлые — только для чтения. Активность выводится
-  // из state.period в сторе, поле status здесь — начальное значение.
-  const semesters = [
-    { id: 'aut2526', name: 'Осень 2025/26', from: '01.09.2025', to: '28.12.2025', status: 'done', current: false },
-    { id: 'spr2526', name: 'Весна 2025/26', from: '09.02.2026', to: '31.05.2026', status: 'done', current: false },
-    { id: 'fall', name: 'Осень 2026/27', from: '01.09.2026', to: '27.12.2026', status: 'active', current: true },
-    { id: 'spring', name: 'Весна 2026/27', from: '08.02.2027', to: '30.05.2027', status: 'draft', current: true },
+  // Учебный год = пара семестров осень + весна (Настройки v4). Активный год
+  // владеет живыми данными двух сезонов (periods.fall / periods.spring);
+  // между осенью и весной переключаются прямо в шапке «Расписания».
+  // Прошлые годы — только для чтения, будущие — черновики.
+  const years = [
+    { id: 'y2526', name: '2025/26', autFrom: '01.09.2025', autTo: '28.12.2025', sprFrom: '09.02.2026', sprTo: '31.05.2026', status: 'done' },
+    { id: 'y2627', name: '2026/27', autFrom: '01.09.2026', autTo: '27.12.2026', sprFrom: '08.02.2027', sprTo: '30.05.2027', status: 'active' },
+    { id: 'y2728', name: '2027/28', autFrom: '01.09.2027', autTo: '26.12.2027', sprFrom: '07.02.2028', sprTo: '28.05.2028', status: 'draft' },
   ]
 
   const topicTypes = DEFAULT_TOPIC_TYPES.map((t) => ({ ...t }))
@@ -166,7 +174,7 @@ export function buildSeed() {
     placed.forEach((pos, i) => {
       lessons.push({
         id: 'l' + (++lN), topicId: topic.id, disciplineId: d.id, groupId: g, teacherId: tOwner,
-        roomId, kind, period: 'fall', day: pos[0], slot: pos[1],
+        roomId, kind, period: 'fall', week: 1, day: pos[0], slot: pos[1], subBy: null,
         pin: !!opts.pin, manual: false, ni: i + 1, nt,
         topicLabel: theme ? theme[0] : '', question: theme ? theme[1] : '',
       })
@@ -175,7 +183,7 @@ export function buildSeed() {
       for (let i = 0; i < extra; i++) {
         lessons.push({
           id: 'l' + (++lN), topicId: topic.id, disciplineId: d.id, groupId: g, teacherId,
-          roomId, kind, period: 'fall', day: null, slot: null,
+          roomId, kind, period: 'fall', week: null, day: null, slot: null, subBy: null,
           pin: false, manual: false, ni: placed.length + i + 1, nt,
           topicLabel: theme ? theme[0] : '', question: theme ? theme[1] : '',
         })
@@ -202,7 +210,7 @@ export function buildSeed() {
   })
 
   return {
-    periods, semesters, topicTypes, teachers, rooms, majors, groups, disciplines, assignments, lessons,
+    periods, years, topicTypes, teachers, rooms, majors, groups, disciplines, assignments, lessons,
     counters: { d: dN, tp: tpN, l: lN },
   }
 }

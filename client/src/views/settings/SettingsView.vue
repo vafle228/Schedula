@@ -2,13 +2,15 @@
 import { reactive, ref, computed, watch } from 'vue'
 import { store } from '../../store/index.js'
 import { ALL_DAYS } from '../../utils/kinds.js'
-import { slotEnd, slotLen, recalcStarts } from '../../utils/slots.js'
+import { toMin, toStr, slotEnd, slotLen } from '../../utils/slots.js'
+import { confirmDelete } from '../../composables/useConfirm.js'
+import ModalWindow from '../../components/ModalWindow.vue'
 
 const activeId = computed(() => store.state.period)
-const activeSem = computed(() => store.state.semesters.find((s) => s.status === 'active'))
-const activeName = computed(() => (activeSem.value ? activeSem.value.name : 'Осень 2026/27'))
+const activeYear = computed(() => store.state.years.find((y) => y.status === 'active'))
+const activeName = computed(() => (activeYear.value ? activeYear.value.name : '2026/27'))
 
-const form = reactive({ dirty: false, saved: false, acadMin: 45, days: [], slots: [], ag: {} })
+const form = reactive({ dirty: false, saved: false, acadMin: 45, days: [], slots: [] })
 
 function loadForm() {
   const p = store.state.periods[activeId.value]
@@ -17,38 +19,60 @@ function loadForm() {
   form.saved = false
   form.acadMin = p.acadMin || 45
   form.days = [...p.activeDays]
-  form.slots = (p.slots || []).map((s) => ({ ...s }))
-  form.ag = { start: '08:30', brk: 15, long: 30, longAfter: 2, ...(p.ag || {}) }
+  form.slots = (p.slots || []).map((s) => ({ brk: 15, ...s }))
 }
 loadForm()
 watch(activeId, loadForm)
 
 function mark() { form.dirty = true; form.saved = false }
 
-/* ---------- semesters ---------- */
+const validT = (t) => /^\d{1,2}:\d{2}$/.test(String(t))
 
-const semRows = computed(() => store.state.semesters.map((s) => {
-  const st = s.status
+/* ---------- academic years ---------- */
+
+const yearRows = computed(() => store.state.years.map((y) => {
+  const st = y.status
   return {
-    id: s.id,
-    name: s.name,
-    range: s.from + ' — ' + s.to,
+    id: y.id,
+    name: y.name,
+    aut: y.autFrom + ' — ' + y.autTo,
+    spr: y.sprFrom + ' — ' + y.sprTo,
     weight: st === 'active' ? 600 : 500,
-    bg: st === 'active' ? 'rgba(31,138,91,0.05)' : 'transparent',
+    bg: st === 'active' ? 'rgba(31,138,91,0.04)' : 'transparent',
     status: st === 'active' ? 'активный' : st === 'done' ? 'завершён' : 'черновик',
     statusCls: st,
-    canActivate: st !== 'active' && s.current,
+    active: st === 'active',
+    actTip: st === 'done' ? 'Завершённый год откроется для чтения и правок' : 'Все разделы переключатся на этот учебный год',
+    delTip: st === 'active' ? 'Активный год удалить нельзя — сначала сделайте активным другой' : 'Удалить учебный год',
   }
 }))
 
-const newSem = ref(null)
-function openNewSem() { newSem.value = { name: '', from: '', to: '', copy: true } }
-const nsValid = computed(() => !!(newSem.value && newSem.value.name.trim() && newSem.value.from.trim() && newSem.value.to.trim()))
-async function createSem() {
-  if (!nsValid.value) return
-  const ns = newSem.value
-  await store.createSemester({ name: ns.name.trim(), from: ns.from.trim(), to: ns.to.trim() })
-  newSem.value = null
+const newYear = ref(null)
+function openNewYear() { newYear.value = { name: '', autFrom: '', autTo: '', sprFrom: '', sprTo: '', copy: true } }
+const nyValid = computed(() => {
+  const n = newYear.value
+  return !!(n && n.name.trim() && n.autFrom.trim() && n.autTo.trim() && n.sprFrom.trim() && n.sprTo.trim())
+})
+async function createYear() {
+  if (!nyValid.value) return
+  const n = newYear.value
+  await store.createYear({
+    name: n.name.trim(),
+    autFrom: n.autFrom.trim(), autTo: n.autTo.trim(),
+    sprFrom: n.sprFrom.trim(), sprTo: n.sprTo.trim(),
+  })
+  newYear.value = null
+}
+
+async function removeYear(y) {
+  if (y.active) return
+  const ok = await confirmDelete({
+    title: 'Удалить учебный год?',
+    message: 'Будут удалены настройки года, назначения и расписание обоих семестров. Действие необратимо.',
+    entityName: `${y.name} · осень ${y.aut} · весна ${y.spr}`,
+    confirmLabel: 'Удалить уч. год',
+  })
+  if (ok) store.deleteYear(y.id)
 }
 
 /* ---------- academic hour ---------- */
@@ -63,30 +87,70 @@ function toggleDay(i) { form.days[i] = !form.days[i]; mark() }
 
 /* ---------- slots (bells) ---------- */
 
-const slotRows = computed(() => form.slots.map((b, i) => ({
-  n: i + 1,
-  start: b.start,
-  hours: b.hours,
-  end: slotEnd(b.start, b.hours, form.acadMin),
-  mins: slotLen(b.hours, form.acadMin),
-})))
+/* Recompute the start of every slot below `from`: start[i] = end[i-1] + break[i-1]. */
+function cascade(slots, from) {
+  for (let i = Math.max(1, from + 1); i < slots.length; i++) {
+    const p = slots[i - 1]
+    if (!validT(p.start)) break
+    slots[i].start = toStr(toMin(p.start) + slotLen(p.hours, form.acadMin) + p.brk)
+  }
+  return slots
+}
 
-function setSlotStart(i, v) { form.slots[i].start = v; mark() }
-function setSlotHours(i, h) { form.slots[i].hours = h; mark() }
-function delSlot(i) { form.slots.splice(i, 1); mark() }
+function commitSlots(slots) { form.slots = slots; mark() }
+const cloneSlots = () => form.slots.map((s) => ({ ...s }))
+
+function updSlot(i, patch) {
+  const slots = cloneSlots()
+  Object.assign(slots[i], patch)
+  commitSlots(cascade(slots, i))
+}
+function setSlotStart(i, v) {
+  const slots = cloneSlots()
+  slots[i].start = v
+  if (validT(v)) {
+    // editing a start retunes the break before it, then shifts the slots below
+    if (i > 0 && validT(slots[i - 1].start)) {
+      const p = slots[i - 1]
+      slots[i - 1].brk = Math.max(0, toMin(v) - (toMin(p.start) + slotLen(p.hours, form.acadMin)))
+    }
+    cascade(slots, i)
+  }
+  commitSlots(slots)
+}
+function setSlotBrk(i, brk) { updSlot(i, { brk: Math.min(60, Math.max(5, brk)) }) }
+function setSlotHours(i, h) { updSlot(i, { hours: h }) }
+function delSlot(i) {
+  const slots = cloneSlots().filter((_, j) => j !== i)
+  commitSlots(cascade(slots, Math.max(0, i - 1)))
+}
 function addSlot() {
   const last = form.slots[form.slots.length - 1]
-  const start = last ? slotEnd(last.start, last.hours, form.acadMin) : form.ag.start
-  form.slots.push({ start, hours: 2 })
-  mark()
+  const start = last && validT(last.start)
+    ? toStr(toMin(last.start) + slotLen(last.hours, form.acadMin) + last.brk)
+    : '08:30'
+  commitSlots([...cloneSlots(), { start, hours: 2, brk: 15 }])
 }
 
-function agDec(key, min, step = 5) { form.ag[key] = Math.max(min, form.ag[key] - step); mark() }
-function agInc(key, max, step = 5) { form.ag[key] = Math.min(max, form.ag[key] + step); mark() }
-function recalc() {
-  form.slots = recalcStarts(form.slots, form.ag, form.acadMin)
-  mark()
-}
+const slotRows = computed(() => form.slots.map((b, i) => {
+  const ok = validT(b.start)
+  const last = i === form.slots.length - 1
+  const brkKind = b.brk >= 25 ? 'большая' : b.brk <= 10 ? 'укороченная' : 'обычная'
+  return {
+    n: i + 1,
+    start: b.start,
+    hours: b.hours,
+    brk: b.brk,
+    last,
+    brkLabel: last ? '—' : b.brk + ' мин',
+    brkBig: !last && b.brk >= 25,
+    brkTitle: last
+      ? 'После последнего урока перемены нет'
+      : 'Перемена после этого урока · ' + brkKind + ' · сдвигает начало следующих уроков',
+    end: ok ? slotEnd(b.start, b.hours, form.acadMin) : '—',
+    mins: slotLen(b.hours, form.acadMin) + ' мин',
+  }
+}))
 
 /* ---------- save ---------- */
 
@@ -96,7 +160,6 @@ async function save() {
     acadMin: form.acadMin,
     activeDays: [...form.days],
     slots: form.slots.map((s) => ({ ...s })),
-    ag: { ...form.ag },
   })
   form.dirty = false
   form.saved = true
@@ -108,7 +171,7 @@ async function save() {
     <!-- ======= header ======= -->
     <div class="head">
       <span class="head-title">Настройки</span>
-      <span class="year-chip mono" title="Настройки ниже относятся к активному семестру">активный семестр: {{ activeName }}</span>
+      <span class="year-chip mono" title="Настройки ниже относятся к активному учебному году">активный уч. год: {{ activeName }}</span>
       <div class="sp"></div>
       <span v-if="form.dirty" class="dirty-note">есть несохранённые изменения</span>
       <button
@@ -124,59 +187,40 @@ async function save() {
     <!-- ======= body ======= -->
     <div class="body">
       <div class="col">
-        <!-- ===== semesters ===== -->
+        <!-- ===== academic years ===== -->
         <div class="panel sect">
           <div class="sect-head-row">
             <div class="sect-head">
-              <span class="sect-title">Семестры</span>
-              <span class="sect-sub">Все разделы приложения — распределение, расписание, учёт часов — работают с активным семестром. Переключение меняет данные везде.</span>
+              <span class="sect-title">Учебные годы</span>
+              <span class="sect-sub">Год = пара семестров (осень + весна). Все разделы работают с активным годом; между осенью и весной переключаются прямо в шапке «Расписания».</span>
             </div>
-            <button class="ghost-btn" @click="openNewSem"><span class="plus">＋</span>Новый семестр</button>
+            <button class="ghost-btn" @click="openNewYear"><span class="plus">＋</span>Новый уч. год</button>
           </div>
-          <div class="sem-table">
-            <div class="sem-thead mono">
-              <span>СЕМЕСТР</span><span>ПЕРИОД</span><span>СТАТУС</span><span></span>
+          <div class="yr-table">
+            <div class="yr-thead mono">
+              <span>УЧ. ГОД</span><span>ОСЕНЬ</span><span>ВЕСНА</span><span>СТАТУС</span><span></span><span></span>
             </div>
-            <div v-for="s in semRows" :key="s.id" class="sem-row" :style="{ background: s.bg }">
-              <span class="sem-name" :style="{ fontWeight: s.weight }">{{ s.name }}</span>
-              <span class="sem-range mono">{{ s.range }}</span>
-              <span class="sem-status mono" :class="s.statusCls">{{ s.status }}</span>
+            <div v-for="y in yearRows" :key="y.id" class="yr-row" :style="{ background: y.bg }">
+              <span class="yr-name" :style="{ fontWeight: y.weight }">{{ y.name }}</span>
+              <span class="yr-range mono">{{ y.aut }}</span>
+              <span class="yr-range mono">{{ y.spr }}</span>
+              <span class="yr-status mono" :class="y.statusCls">{{ y.status }}</span>
               <span
-                v-if="s.canActivate"
-                class="sem-act"
-                title="Все разделы переключатся на этот семестр"
-                @click="store.activateSemester(s.id)"
+                v-if="!y.active"
+                class="yr-act"
+                :title="y.actTip"
+                @click="store.activateYear(y.id)"
               >сделать активным</span>
               <span v-else></span>
+              <button
+                class="yr-del"
+                :class="{ off: y.active }"
+                :title="y.delTip"
+                @click="removeYear(y)"
+              >✕</button>
             </div>
           </div>
-
-          <div v-if="newSem" class="ns-form">
-            <span class="micro">НОВЫЙ СЕМЕСТР</span>
-            <div class="ns-fields">
-              <div class="fld" style="flex: 1">
-                <span class="field-label">НАЗВАНИЕ</span>
-                <input v-model="newSem.name" class="input" placeholder="напр. Осень 2027/28">
-              </div>
-              <div class="fld" style="flex: none; width: 120px">
-                <span class="field-label">НАЧАЛО</span>
-                <input v-model="newSem.from" class="input mono" placeholder="01.09.2027">
-              </div>
-              <div class="fld" style="flex: none; width: 120px">
-                <span class="field-label">КОНЕЦ</span>
-                <input v-model="newSem.to" class="input mono" placeholder="26.12.2027">
-              </div>
-            </div>
-            <label class="ns-copy" @click.prevent="newSem.copy = !newSem.copy">
-              <span class="ns-box" :class="{ on: newSem.copy }">{{ newSem.copy ? '✓' : '' }}</span>
-              скопировать сетку звонков, учебную неделю и академический час из активного семестра
-            </label>
-            <div class="ns-actions">
-              <button class="btn-primary" :disabled="!nsValid" @click="createSem">Создать семестр</button>
-              <button class="btn" @click="newSem = null">Отмена</button>
-            </div>
-          </div>
-          <div class="footnote">Новый семестр создаётся черновиком: настройте сетку и неделю, сделайте назначения в «Распределении» — и переключите его в активные. Завершённые семестры доступны только для чтения и экспорта.</div>
+          <div class="footnote">Новый год создаётся черновиком: настройте сетку, сделайте назначения в «Распределении» — и переключите его в активные. Завершённые годы доступны для чтения и экспорта. Активный год удалить нельзя.</div>
         </div>
 
         <!-- ===== academic hour ===== -->
@@ -194,7 +238,7 @@ async function save() {
           <div class="ah-info">
             <span>На академический час завязаны:</span>
             <span>· <b>типы занятий</b> — длительность типа = N × ак.ч ({{ exType }})</span>
-            <span>· <b>сетка звонков</b> — конец слота считается из начала и числа ак. часов</span>
+            <span>· <b>сетка звонков</b> — время слотов считается из ак. часа и перемен</span>
             <span>· <b>учёт часов</b> — «разложено / заведено / план» в содержании курсов</span>
           </div>
         </div>
@@ -220,65 +264,109 @@ async function save() {
         <div class="panel sect">
           <div class="sect-head">
             <span class="sect-title">Сетка звонков</span>
-            <span class="sect-sub">Слот = 2 или 1 ак.ч. Строки сетки «Расписания» повторяют эти слоты один в один; занятие занимает слот целиком</span>
-          </div>
-
-          <div class="ag-box">
-            <div class="ag-head">
-              <span class="micro">АВТОРАСЧЁТ ВРЕМЕНИ</span>
-              <span class="ag-note">время каждого слота выводится из ак. часа и перемен — руками задаётся только состав слотов</span>
-            </div>
-            <div class="ag-controls">
-              <div class="ag-fld">
-                <span class="field-label">НАЧАЛО ДНЯ</span>
-                <input :value="form.ag.start" class="input mono ag-start" @change="form.ag.start = $event.target.value; mark()">
-              </div>
-              <div class="ag-fld">
-                <span class="field-label">ПЕРЕМЕНА</span>
-                <div class="ag-step">
-                  <button class="mini" @click="agDec('brk', 5)">−</button>
-                  <span class="mono ag-val">{{ form.ag.brk }} мин</span>
-                  <button class="mini" @click="agInc('brk', 30)">＋</button>
-                </div>
-              </div>
-              <div class="ag-fld">
-                <span class="field-label">БОЛЬШАЯ ПЕРЕМЕНА · ПОСЛЕ СЛОТА {{ form.ag.longAfter }}</span>
-                <div class="ag-step">
-                  <button class="mini" @click="agDec('long', 10)">−</button>
-                  <span class="mono ag-val">{{ form.ag.long }} мин</span>
-                  <button class="mini" @click="agInc('long', 60)">＋</button>
-                </div>
-              </div>
-              <button class="recalc-btn" title="Пересчитать время всех слотов от начала дня" @click="recalc">⟳ Пересчитать время</button>
-            </div>
+            <span class="sect-sub">Слот = 1–2 ак.ч. Начало урока и перемена после него редактируются прямо в таблице; конец и длительность считаются сами. Изменение начала или перемены сдвигает все уроки ниже.</span>
           </div>
 
           <div class="slot-table">
             <div class="slot-thead mono">
-              <span>СЛОТ</span><span>НАЧАЛО</span><span>АК. ЧАСОВ</span><span>ВРЕМЯ</span><span></span>
+              <span>СЛОТ</span><span>НАЧАЛО</span><span>АК. ЧАСОВ</span><span>ПЕРЕМЕНА ПОСЛЕ</span><span>КОНЕЦ</span><span>ДЛИТ.</span><span></span>
             </div>
             <div v-for="(b, i) in slotRows" :key="i" class="slot-row">
               <span class="slot-n mono">{{ b.n }}</span>
-              <input :value="b.start" class="input mono slot-start" @change="setSlotStart(i, $event.target.value)">
+              <input :value="b.start" class="input mono slot-start" title="Начало урока — редактируется; перемена перед ним и уроки ниже подстроятся" @change="setSlotStart(i, $event.target.value)">
               <span class="hseg">
                 <button :class="{ on: b.hours === 1 }" @click="setSlotHours(i, 1)">1 ак.ч</button>
                 <button :class="{ on: b.hours === 2 }" @click="setSlotHours(i, 2)">2 ак.ч</button>
               </span>
-              <span class="slot-time mono">→ {{ b.end }} <span class="dim">· {{ b.mins }} мин</span></span>
+              <span class="slot-brk" :title="b.brkTitle">
+                <template v-if="!b.last">
+                  <button class="mini" @click="setSlotBrk(i, b.brk - 5)">−</button>
+                  <span class="brk-val mono" :class="{ big: b.brkBig }">{{ b.brkLabel }}</span>
+                  <button class="mini" @click="setSlotBrk(i, b.brk + 5)">＋</button>
+                </template>
+                <span v-else class="brk-val mono dim">—</span>
+              </span>
+              <span class="slot-end mono">{{ b.end }}</span>
+              <span class="slot-mins mono">{{ b.mins }}</span>
               <button class="slot-del" title="Удалить слот" @click="delSlot(i)">✕</button>
             </div>
             <button class="add-slot" @click="addSlot">+ слот</button>
           </div>
-          <div class="footnote">Конец слота = начало + ак. часы × {{ form.acadMin }} мин (+5 мин между часами внутри пары). Автогенератор не ставит занятие 2 ак.ч в слот на 1 ак.ч.</div>
+          <div class="footnote">Длительность слота = ак. часы × {{ form.acadMin }} мин (+5 мин звонок между часами внутри пары). Большая перемена — просто больше минут после нужного урока; укороченная — меньше. Автогенератор не ставит занятие 2 ак.ч в слот на 1 ак.ч.</div>
         </div>
 
         <div class="footnote wide">
-          Изменения применяются к активному семестру: сетка «Расписания», проверка конфликтов и генератор
+          Изменения применяются к активному учебному году: сетка «Расписания», проверка конфликтов и генератор
           перечитывают конфиг после сохранения. Уже размещённые занятия при сужении недели или сетки
           помечаются как проблемы, а не удаляются.
         </div>
       </div>
     </div>
+
+    <!-- ===== new academic year modal ===== -->
+    <ModalWindow v-if="newYear" title="Новый учебный год" :width="600" @close="newYear = null">
+      <div class="ny-body">
+        <div class="ny-name">
+          <span class="field-label">НАЗВАНИЕ УЧЕБНОГО ГОДА</span>
+          <div class="ny-name-row">
+            <input v-model="newYear.name" class="input ny-name-input" placeholder="2028/29">
+            <span class="ny-hint">пара семестров одного года — осень и весна</span>
+          </div>
+        </div>
+
+        <div class="ny-terms">
+          <div class="ny-term aut">
+            <div class="ny-term-head">
+              <span class="ny-dot"></span>
+              <span class="ny-term-title">Осень</span>
+              <span class="sp"></span>
+              <span class="ny-term-tag mono">1 СЕМЕСТР</span>
+            </div>
+            <div class="ny-term-fields">
+              <div class="fld">
+                <span class="ny-flabel">Начало</span>
+                <input v-model="newYear.autFrom" class="input mono ny-date aut" placeholder="01.09.2028">
+              </div>
+              <span class="ny-arrow">→</span>
+              <div class="fld">
+                <span class="ny-flabel">Конец</span>
+                <input v-model="newYear.autTo" class="input mono ny-date aut" placeholder="24.12.2028">
+              </div>
+            </div>
+          </div>
+          <div class="ny-term spr">
+            <div class="ny-term-head">
+              <span class="ny-dot"></span>
+              <span class="ny-term-title">Весна</span>
+              <span class="sp"></span>
+              <span class="ny-term-tag mono">2 СЕМЕСТР</span>
+            </div>
+            <div class="ny-term-fields">
+              <div class="fld">
+                <span class="ny-flabel">Начало</span>
+                <input v-model="newYear.sprFrom" class="input mono ny-date spr" placeholder="05.02.2029">
+              </div>
+              <span class="ny-arrow">→</span>
+              <div class="fld">
+                <span class="ny-flabel">Конец</span>
+                <input v-model="newYear.sprTo" class="input mono ny-date spr" placeholder="27.05.2029">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <label class="ns-copy" @click.prevent="newYear.copy = !newYear.copy">
+          <span class="ns-box" :class="{ on: newYear.copy }">{{ newYear.copy ? '✓' : '' }}</span>
+          скопировать сетку звонков, учебную неделю и академический час из активного года
+        </label>
+        <div class="footnote">Год создаётся черновиком — активным его делают отдельно, в списке учебных годов.</div>
+      </div>
+      <template #footer>
+        <span class="sp"></span>
+        <button class="btn" @click="newYear = null">Отмена</button>
+        <button class="btn-primary" :disabled="!nyValid" @click="createYear">Создать уч. год</button>
+      </template>
+    </ModalWindow>
   </div>
 </template>
 
@@ -341,35 +429,27 @@ async function save() {
 .ghost-btn:hover { background: #FBFAF8; }
 .plus { font-size: 13px; line-height: 1; }
 
-/* semesters */
-.sem-table { display: flex; flex-direction: column; }
-.sem-thead, .sem-row {
+/* academic years */
+.yr-table { display: flex; flex-direction: column; }
+.yr-thead, .yr-row {
   display: grid;
-  grid-template-columns: 1fr 170px 100px 130px;
+  grid-template-columns: 86px 1fr 1fr 92px 118px 26px;
   gap: 8px;
   align-items: center;
 }
-.sem-thead { padding: 4px 0; font: 500 10px var(--mono); letter-spacing: 0.06em; color: var(--faint); }
-.sem-row { padding: 8px 0; border-top: 1px solid rgba(0, 0, 0, 0.06); }
-.sem-name { font-size: 12.5px; }
-.sem-range { font: 400 11px var(--mono); color: var(--muted); }
-.sem-status { justify-self: start; font: 500 9.5px var(--mono); border-radius: 4px; padding: 2px 7px; }
-.sem-status.active { color: var(--green); background: rgba(31, 138, 91, 0.10); }
-.sem-status.done { color: var(--muted); background: var(--chip); }
-.sem-status.draft { color: var(--amber); background: rgba(176, 124, 31, 0.10); }
-.sem-act { justify-self: end; font-size: 11.5px; color: var(--blue); cursor: pointer; }
-.sem-act:hover { text-decoration: underline; }
+.yr-thead { padding: 4px 0; font: 500 10px var(--mono); letter-spacing: 0.06em; color: var(--faint); }
+.yr-row { padding: 8px 0; border-top: 1px solid rgba(0, 0, 0, 0.06); }
+.yr-name { font-size: 12.5px; }
+.yr-range { font: 400 10.5px var(--mono); color: var(--muted); }
+.yr-status { justify-self: start; font: 500 9.5px var(--mono); border-radius: 4px; padding: 2px 7px; }
+.yr-status.active { color: var(--green); background: rgba(31, 138, 91, 0.10); }
+.yr-status.done { color: var(--muted); background: var(--chip); }
+.yr-status.draft { color: var(--amber); background: rgba(176, 124, 31, 0.10); }
+.yr-act { justify-self: end; font-size: 11.5px; color: var(--blue); cursor: pointer; }
+.yr-act:hover { text-decoration: underline; }
+.yr-del { justify-self: end; border: none; background: transparent; color: var(--red); font-size: 13px; cursor: pointer; padding: 2px 4px; }
+.yr-del.off { color: var(--dim); cursor: default; }
 
-.ns-form {
-  border: 1.5px solid rgba(31, 138, 91, 0.45);
-  border-radius: var(--r-lg);
-  padding: 12px;
-  background: #FBFAF8;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.ns-fields { display: flex; gap: 8px; }
 .fld { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ns-copy { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: #3A382F; }
 .ns-box {
@@ -386,7 +466,33 @@ async function save() {
   border: 1px solid rgba(0, 0, 0, 0.25);
 }
 .ns-box.on { background: var(--fg); border-color: var(--fg); }
-.ns-actions { display: flex; gap: 6px; }
+
+/* new-year modal */
+.ny-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+.ny-name { display: flex; flex-direction: column; gap: 5px; }
+.ny-name-row { display: flex; align-items: center; gap: 10px; }
+.ny-name-input { width: 150px; font-weight: 600; }
+.ny-hint { font-size: 11.5px; color: var(--faint); }
+.ny-terms { display: flex; gap: 12px; }
+.ny-term { flex: 1; min-width: 0; border-radius: var(--r-lg); padding: 12px 13px 13px; display: flex; flex-direction: column; gap: 10px; }
+.ny-term.aut { border: 1px solid rgba(176, 124, 31, 0.28); border-top: 3px solid var(--amber); background: rgba(176, 124, 31, 0.05); }
+.ny-term.spr { border: 1px solid rgba(31, 138, 91, 0.28); border-top: 3px solid var(--green); background: rgba(31, 138, 91, 0.05); }
+.ny-term-head { display: flex; align-items: center; gap: 8px; }
+.ny-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.ny-term.aut .ny-dot { background: var(--amber); }
+.ny-term.spr .ny-dot { background: var(--green); }
+.ny-term-title { font-size: 13.5px; font-weight: 600; }
+.ny-term.aut .ny-term-title { color: #8A6A28; }
+.ny-term.spr .ny-term-title { color: #166A45; }
+.ny-term-tag { font: 500 9px var(--mono); letter-spacing: 0.05em; border-radius: 4px; padding: 2px 7px; }
+.ny-term.aut .ny-term-tag { color: #B0894A; background: rgba(176, 124, 31, 0.13); }
+.ny-term.spr .ny-term-tag { color: #3E9A6E; background: rgba(31, 138, 91, 0.13); }
+.ny-term-fields { display: flex; gap: 8px; align-items: flex-end; }
+.ny-flabel { font-size: 10px; color: var(--muted); }
+.ny-date { font: 400 11.5px var(--mono); padding: 7px 9px; }
+.ny-date.aut { border-color: rgba(176, 124, 31, 0.35); }
+.ny-date.spr { border-color: rgba(31, 138, 91, 0.32); }
+.ny-arrow { flex: none; font-size: 12px; padding-bottom: 8px; color: var(--faint); }
 
 /* academic hour */
 .ah-row { display: flex; align-items: center; gap: 10px; }
@@ -426,36 +532,28 @@ async function save() {
 }
 .day-btn.on { border-color: var(--fg); background: var(--fg); color: #FFFFFF; }
 
-/* auto builder */
-.ag-box { background: #FBFAF8; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: var(--r-lg); padding: 11px 12px; display: flex; flex-direction: column; gap: 9px; }
-.ag-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.ag-note { font-size: 11px; color: var(--faint); }
-.ag-controls { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
-.ag-fld { display: flex; flex-direction: column; gap: 4px; }
-.ag-start { width: 64px; text-align: center; font: 400 12px var(--mono); padding: 6px 8px; }
-.ag-step { display: flex; align-items: center; gap: 5px; }
-.ag-val { font: 500 12px var(--mono); min-width: 44px; text-align: center; }
-.mini { border: 1px solid var(--line-soft); background: var(--panel); width: 22px; height: 22px; border-radius: 5px; cursor: pointer; font-size: 11px; }
-.recalc-btn { border: none; background: var(--fg); color: #FFF; font: 500 12px var(--sans); padding: 8px 14px; border-radius: var(--r-md); cursor: pointer; }
-.recalc-btn:hover { background: var(--fg-hover); }
-
 /* slots */
 .slot-table { display: flex; flex-direction: column; }
 .slot-thead, .slot-row {
   display: grid;
-  grid-template-columns: 52px 84px 150px 1fr 30px;
+  grid-template-columns: 40px 76px 150px 128px 70px 74px 30px;
   gap: 8px;
   align-items: center;
 }
 .slot-thead { padding: 4px 0; font: 500 10px var(--mono); letter-spacing: 0.06em; color: var(--faint); }
-.slot-row { padding: 6px 0; border-top: 1px solid rgba(0, 0, 0, 0.06); }
+.slot-row { padding: 7px 0; border-top: 1px solid rgba(0, 0, 0, 0.06); }
 .slot-n { font: 400 11px var(--mono); color: var(--faint); }
-.slot-start { width: 64px; text-align: center; font: 400 12px var(--mono); padding: 5px 8px; background: #FBFAF8; }
+.slot-start { width: 100%; box-sizing: border-box; text-align: center; font: 400 12px var(--mono); padding: 6px 4px; background: var(--panel); }
 .hseg { display: inline-flex; background: #F2F0EB; border-radius: 6px; padding: 2px; gap: 2px; }
 .hseg button { border: none; border-radius: 5px; padding: 4px 10px; font: 500 11px var(--sans); color: var(--muted); background: transparent; cursor: pointer; }
 .hseg button.on { font-weight: 600; color: var(--fg); background: #FFF; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14); }
-.slot-time { font: 400 11.5px var(--mono); color: var(--sub); }
-.slot-time .dim { color: var(--faint); }
+.slot-brk { display: inline-flex; align-items: center; gap: 5px; }
+.mini { border: 1px solid var(--line-soft); background: var(--panel); width: 20px; height: 20px; border-radius: 5px; cursor: pointer; font-size: 10px; line-height: 1; }
+.brk-val { font: 500 11px var(--mono); min-width: 46px; text-align: center; color: #3A382F; }
+.brk-val.big { color: #8A6A28; }
+.brk-val.dim { color: var(--dim); }
+.slot-end { font: 400 11.5px var(--mono); color: var(--sub); }
+.slot-mins { font: 400 10.5px var(--mono); color: var(--faint); }
 .slot-del { border: none; background: transparent; color: var(--red); font-size: 13px; cursor: pointer; padding: 2px 6px; }
 .add-slot { align-self: flex-start; margin-top: 8px; background: transparent; border: 1px dashed var(--line-strong); border-radius: 6px; padding: 6px 12px; font-size: 11.5px; color: var(--blue); cursor: pointer; }
 

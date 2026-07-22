@@ -1,20 +1,20 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { store } from '../../store/index.js'
+import { ALL_DAYS } from '../../utils/kinds.js'
 import InfoDot from '../../components/InfoDot.vue'
 import ScheduleGrid from './ScheduleGrid.vue'
 import PoolPanel from './PoolPanel.vue'
-import ProblemsModal from './ProblemsModal.vue'
 import GenerationPanel from './GenerationPanel.vue'
 import LessonFormModal from './LessonFormModal.vue'
-import PlaceDialog from './PlaceDialog.vue'
 import ConstraintsModal from './ConstraintsModal.vue'
 import RoomsModal from './RoomsModal.vue'
 import ScheduleExportModal from './ScheduleExportModal.vue'
 import {
-  ui, enriched, visible, placedN, totalN, problemsN, dayIdxs, slotsN,
-  entVal, entOptions, entStep, place, removeLessons, pinLessons,
-  openDlg, openLf, closeAllModals,
+  ui, enriched, visible, analysis, dayIdxs, slotsN, flash,
+  entVal, entOptions, entStep, removeLessons, pinLessons,
+  openLf, closeAllModals,
+  weekBtns, weekRangeLabel, weekPagesN, selectWeek, weekPagePrev, weekPageNext,
 } from './useSchedule.js'
 
 const gridRef = ref(null)
@@ -30,7 +30,40 @@ const viewBtns = [
   { k: 'room', label: 'Аудитории' },
 ]
 
-const progressPct = computed(() => (totalN.value ? Math.round((placedN.value / totalN.value) * 100) : 0))
+/* Problems shown in the header popup (Итерация 8): conflicts, orphans,
+   broken wishes — click jumps to the lesson in the grid. */
+const problems = computed(() => {
+  const out = []
+  enriched.value.forEach((l) => {
+    const issues = analysis.value.byId[l.id]
+    if (!issues) return
+    const isHard = issues.some((x) => x.sev === 'hard')
+    out.push({
+      l,
+      hard: isHard,
+      title: l.disc + ', ' + l.g,
+      accent: isHard ? '#C24536' : '#B07C1F',
+      border: isHard ? 'rgba(194,69,54,0.3)' : 'rgba(176,124,31,0.35)',
+      desc: issues.map((x) => x.text).join('; ') + ' · '
+        + (l.d != null ? 'Н' + l.w + ' ' + ALL_DAYS[l.d] + ' ' + (l.s + 1) + ' пара' : 'в пуле'),
+    })
+  })
+  out.sort((a, b) => (a.hard ? 0 : 1) - (b.hard ? 0 : 1))
+  return out
+})
+const probN = computed(() => problems.value.length)
+
+function goProblem(item) {
+  const l = item.l
+  ui.view = 'group'
+  ui.ent.group = l.g
+  if (l.w != null) selectWeek(l.w)
+  ui.cursor = l.d != null ? { d: l.d, s: l.s } : null
+  ui.sel = [l.id]
+  ui.prob = false
+  flash(l.id)
+}
+
 const isEmpty = computed(() => enriched.value.length === 0)
 const emptyTitle = computed(() => (store.state.period === 'spring'
   ? 'На весенний период нет назначений'
@@ -61,7 +94,8 @@ function pickSeason(k) {
   ui.sel = []
   ui.cursor = null
   ui.dragId = null
-  ui.dlg = null
+  ui.week = 1
+  ui.weekPage = 0
   ui.lf = null
   ui.prob = false
   if (ui.gen && ui.gen.phase !== 'run') ui.gen = null
@@ -104,11 +138,6 @@ function onKey(e) {
     setTimeout(() => poolRef.value && poolRef.value.focusSearch(), 30)
     return
   }
-  if (e.key.toLowerCase() === 'n' || e.key.toLowerCase() === 'т') {
-    e.preventDefault()
-    openLf(ui.cursor)
-    return
-  }
   if (e.key === 'PageUp') { e.preventDefault(); entStep(-1); return }
   if (e.key === 'PageDown') { e.preventDefault(); entStep(1); return }
   const arrows = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: 0, ArrowDown: 0 }
@@ -127,19 +156,18 @@ function onKey(e) {
     return
   }
   const cur = ui.cursor
-  const cellLessons = cur ? visible.value.filter((l) => l.d === cur.d && l.s === cur.s) : []
+  const cellLessons = cur ? visible.value.filter((l) => l.w === ui.week && l.d === cur.d && l.s === cur.s) : []
   if (e.key === 'Enter') {
     e.preventDefault()
-    if (ui.sel.length === 1 && cur && cellLessons.length === 0) { place(ui.sel[0], cur.d, cur.s); return }
-    if (cellLessons.length) openDlg(cellLessons[0].id)
+    if (cellLessons.length) openLf(null, cellLessons[0].id)
     return
   }
   if (e.key.toLowerCase() === 'p' || e.key.toLowerCase() === 'з') {
-    pinLessons(ui.sel.length ? ui.sel : cellLessons.map((l) => l.id))
+    pinLessons(cellLessons.map((l) => l.id))
     return
   }
   if (e.key === 'Delete' || e.key === 'Backspace') {
-    removeLessons(ui.sel.length ? ui.sel : cellLessons.map((l) => l.id))
+    removeLessons(cellLessons.map((l) => l.id))
   }
 }
 
@@ -175,25 +203,38 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
           @click="pickView(v.k)"
         >{{ v.label }}</button>
       </div>
-      <div class="stat-chip" title="Размещено пар из назначенных на период">
-        <span class="mono stat-n">{{ placedN }}/{{ totalN }}</span>
-        <span class="stat-bar"><span class="stat-fill" :style="{ width: progressPct + '%' }"></span></span>
-      </div>
-      <button
-        v-if="problemsN > 0"
-        class="prob-btn"
-        title="Есть проблемы — клик открывает список"
-        @click="ui.prob = true"
-      >⚠ {{ problemsN }}</button>
-      <span
-        v-else
-        class="prob-ok"
-        title="Проблем нет — клик открывает список"
-        @click="ui.prob = true"
-      >✓</span>
       <div class="sp"></div>
+      <div class="prob-wrap">
+        <button
+          class="prob-chip"
+          :class="probN ? 'has' : 'ok'"
+          title="Проблемы и конфликты — клик открывает список"
+          @click="ui.prob = !ui.prob"
+        >{{ probN ? '⚠ Проблемы · ' + probN : '✓ Проблем нет' }}</button>
+        <template v-if="ui.prob">
+          <div class="prob-backdrop" @click="ui.prob = false"></div>
+          <div class="prob-pop">
+            <div class="pop-head">
+              <span class="pop-title">Проблемы</span>
+              <span class="pop-badge" :class="{ ok: probN === 0 }">{{ probN }}</span>
+            </div>
+            <div
+              v-for="(pr, i) in problems"
+              :key="i"
+              class="pop-item"
+              :style="{ borderColor: pr.border, borderLeftColor: pr.accent }"
+              title="Клик — показать место проблемы в сетке"
+              @click="goProblem(pr)"
+            >
+              <div class="pop-item-title" :style="{ color: pr.accent }">{{ pr.title }}</div>
+              <div class="pop-item-desc">{{ pr.desc }}</div>
+            </div>
+            <div v-if="probN === 0" class="pop-empty">✓ Проблем нет</div>
+          </div>
+        </template>
+      </div>
       <button class="btn" title="Выгрузить расписание в Excel" @click="openExport">Экспорт…</button>
-      <button class="btn-primary" title="Сгенерировать черновик расписания" @click="openGen">Сгенерировать</button>
+      <button class="btn-primary" title="Разложить черновик расписания по неделям" @click="openGen">⟳ Разложить</button>
       <div class="ov-wrap">
         <button
           class="btn ov-btn"
@@ -248,15 +289,22 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
           </select>
           <button class="nav-btn" title="Следующая (PgDn)" @click="entStep(1)">›</button>
           <span class="ent-meta mono">{{ entMeta }}</span>
-          <InfoDot tip="Клик по пустой клетке — новое занятие (N). Двойной клик по карточке — тема и учебный вопрос. P — закрепить, Del — снять в пул, / — поиск, Ctrl+Z — отмена." />
+          <InfoDot tip="Занятие заводится слева в «Содержании курсов» (+ занятие) и перетаскивается на слот. Клик по карточке — карточка занятия. P — закрепить, Del — снять в пул, / — поиск, Ctrl+Z — отмена." />
           <span v-if="entWarn" class="ent-warn">доступность не задана — считается полностью доступным</span>
           <span class="sp"></span>
-          <div v-if="ui.sel.length" class="sel-bar">
-            <span class="sel-label">Выбрано: {{ ui.sel.length }}</span>
-            <button class="sel-btn" title="Закрепить / открепить (P) — генератор не тронет" @click="pinLessons(ui.sel)">⌖ Закрепить</button>
-            <button class="sel-btn" title="Разместить через диалог (Enter)" @click="ui.sel.length && openDlg(ui.sel[0])">Разместить…</button>
-            <button class="sel-btn" title="Снять в пул (Del)" @click="removeLessons(ui.sel)">✕ Снять</button>
-            <button class="sel-x" title="Esc" @click="ui.sel = []">×</button>
+          <span class="week-lead mono">НЕДЕЛЯ</span>
+          <div class="week-pager">
+            <button class="wk-arrow" :disabled="ui.weekPage === 0" title="Предыдущие недели" @click="weekPagePrev">‹</button>
+            <button
+              v-for="w in weekBtns"
+              :key="w.n"
+              class="wk-btn mono"
+              :class="{ on: w.on, hol: w.hol }"
+              :title="'Неделя ' + w.n"
+              @click="selectWeek(w.n)"
+            >{{ w.n }}{{ w.hol ? '⚑' : '' }}</button>
+            <button class="wk-arrow" :disabled="ui.weekPage >= weekPagesN - 1" title="Следующие недели" @click="weekPageNext">›</button>
+            <span class="wk-range mono">{{ weekRangeLabel }}</span>
           </div>
         </div>
         <ScheduleGrid ref="gridRef" />
@@ -264,10 +312,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
     </div>
 
     <!-- ======= modals ======= -->
-    <ProblemsModal />
     <GenerationPanel />
     <LessonFormModal />
-    <PlaceDialog />
     <ConstraintsModal />
     <RoomsModal />
     <ScheduleExportModal />
@@ -333,35 +379,79 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 .yc-year { font-size: 12px; font-weight: 600; color: var(--fg); }
 .yc-act { font: 400 9.5px var(--mono); color: var(--faint); }
 
-.stat-chip {
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border: 1px solid rgba(0, 0, 0, 0.10);
-  background: var(--hover);
-  border-radius: 15px;
-  padding: 5px 10px;
-}
-.stat-n { font: 500 11.5px var(--mono); color: #3A382F; }
-.stat-bar { width: 36px; height: 3px; background: var(--active); border-radius: 2px; overflow: hidden; display: block; }
-.stat-fill { display: block; height: 100%; background: var(--fg); }
-
-.prob-btn {
+.prob-wrap { position: relative; flex: none; }
+.prob-chip {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.prob-chip.has {
   border: 1px solid rgba(194, 69, 54, 0.4);
   background: rgba(194, 69, 54, 0.07);
   color: var(--red);
-  font: 600 12px var(--sans);
-  padding: 5px 10px;
-  border-radius: 15px;
+  font: 600 13px var(--sans);
+  padding: 9px 15px;
+}
+.prob-chip.has:hover { background: rgba(194, 69, 54, 0.12); }
+.prob-chip.ok {
+  border: 1px solid rgba(31, 138, 91, 0.35);
+  background: rgba(31, 138, 91, 0.06);
+  color: var(--green);
+  font: 500 12.5px var(--sans);
+  padding: 8px 13px;
+}
+.prob-chip.ok:hover { background: rgba(31, 138, 91, 0.1); }
+
+.prob-backdrop { position: fixed; inset: 0; z-index: 45; }
+.prob-pop {
+  position: absolute;
+  right: 0;
+  top: 40px;
+  z-index: 46;
+  width: 320px;
+  max-height: 60vh;
+  overflow: auto;
+  background: var(--panel);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pop-head { display: flex; align-items: center; gap: 8px; }
+.pop-title { font-size: 13px; font-weight: 600; }
+.pop-badge {
+  font: 600 10px var(--mono);
+  background: rgba(194, 69, 54, 0.12);
+  color: #C24536;
+  padding: 2px 7px;
+  border-radius: 10px;
+}
+.pop-badge.ok { background: rgba(31, 138, 91, 0.12); color: #166A45; }
+.pop-item {
+  background: var(--panel);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-left: 3px solid #C24536;
+  border-radius: 8px;
+  padding: 9px 11px;
   cursor: pointer;
 }
-.prob-btn:hover { background: rgba(194, 69, 54, 0.12); }
-.prob-ok { flex: none; font: 600 12px var(--sans); color: var(--green); cursor: pointer; padding: 6px 4px; }
+.pop-item:hover { background: #FBFAF8; }
+.pop-item-title { font-size: 12px; font-weight: 600; margin-bottom: 2px; }
+.pop-item-desc { font-size: 11px; line-height: 1.4; color: var(--sub); }
+.pop-empty {
+  text-align: center;
+  color: #166A45;
+  font-size: 12px;
+  padding: 14px 8px;
+  background: rgba(31, 138, 91, 0.06);
+  border-radius: 8px;
+}
 
 .ov-wrap { position: relative; flex: none; }
 .ov-btn { font: 600 15px var(--sans); width: 31px; height: 31px; padding: 0; }
@@ -473,23 +563,32 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   padding: 2px 9px;
 }
 
-.sel-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--fg);
-  border-radius: var(--r-lg);
-  padding: 4px 6px 4px 12px;
+.week-lead { font: 500 9px var(--mono); letter-spacing: 0.06em; color: var(--muted); }
+.week-pager { display: inline-flex; align-items: center; gap: 3px; }
+.wk-arrow {
+  width: 24px;
+  height: 26px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: var(--panel);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  color: #3A382F;
+  font: 600 13px var(--sans);
 }
-.sel-label { font-size: 12px; color: #FFFFFF; font-weight: 500; }
-.sel-btn {
-  border: none;
-  background: rgba(255, 255, 255, 0.14);
-  color: #FFFFFF;
-  font-size: 12px;
-  padding: 4px 9px;
+.wk-arrow:disabled { color: #D5D1C8; cursor: default; }
+.wk-btn {
+  min-width: 28px;
+  height: 26px;
+  padding: 0 4px;
+  text-align: center;
+  font: 500 11px var(--mono);
+  color: #3A382F;
+  background: transparent;
+  border: 1.5px solid rgba(0, 0, 0, 0.12);
   border-radius: var(--r-sm);
   cursor: pointer;
 }
-.sel-x { border: none; background: transparent; color: var(--dim); font-size: 13px; padding: 4px 6px; cursor: pointer; }
+.wk-btn.on { border-color: var(--fg); font-weight: 700; }
+.wk-btn.hol { color: var(--amber); background: rgba(176, 124, 31, 0.14); }
+.wk-range { font: 400 9.5px var(--mono); color: var(--faint); margin-left: 3px; }
 </style>
