@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { store } from '../../store/index.js'
 import { kindOf } from '../../utils/kinds.js'
 import {
-  ui, dayIdxs, dayHeads, slotsN, bells, weekVisible, analysis, statusFor,
+  ui, dayIdxs, dayHeads, slotsN, bells, weekVisible, visible, analysis, statusFor,
   place, openLf, dateFor, isHol,
 } from './useSchedule.js'
 
@@ -12,6 +12,19 @@ defineExpose({ focus: () => gridEl.value && gridEl.value.focus() })
 
 const dragL = computed(() => (ui.dragId ? store.enriched.value.find((l) => l.id === ui.dragId) : null))
 const curT = computed(() => (ui.view === 'teacher' ? store.teacherById(ui.ent.teacher) : null))
+
+/* Type legend shows ONLY the types the current selection actually teaches —
+   the whole catalogue could be large, so it's bounded to what's on the grid.
+   Full catalogue lives in «Справочники → Типы занятий». */
+const typesInView = computed(() => {
+  const seen = new Map()
+  visible.value.forEach((l) => {
+    if (seen.has(l.kind)) return
+    const K = kindOf(l.kind)
+    seen.set(l.kind, { k: l.kind, label: K.label, bg: K.bg, bd: K.bd, dark: K.dark })
+  })
+  return [...seen.values()]
+})
 
 const dayCols = computed(() => dayIdxs.value.map((d, i) => ({
   d,
@@ -84,40 +97,29 @@ function buildCard(l, d, s) {
   const eff = store.teacherById(l.subBy || l.t)
   const effName = eff ? eff.name : ''
   const who = ui.view === 'group' ? effName : l.g
-  const style = {}
-  let titleColor
-  let subColor = '#5C574E'
+  /* Card fill / border / title now encode the lesson TYPE (its own colour) —
+     the old type dot is gone. STATE rides on top: a text badge, plus a red
+     border for конфликт and a dashed border for вне плана so both stay legible
+     whatever the type hue is. */
+  const style = { background: K.bg, border: '1px solid ' + K.bd }
+  const titleColor = K.dark
+  const subColor = '#5C574E'
   let badge = ''
-  /* Cell fill encodes STATE (Итерация 8); the type is shown by the dot.
-     placed = green, manual = blue, замена = amber, конфликт = red. */
-  if (l.orphan) {
-    style.border = '1.5px dashed #B07C1F'
-    style.background = 'rgba(176,124,31,0.06)'
-    titleColor = '#B07C1F'
-    subColor = '#8A6A28'
-    badge = 'вне плана'
-  } else if (isHard) {
+  let badgeColor = K.dark
+  if (isHard) {
     style.border = '1.5px solid #C24536'
-    style.background = 'rgba(194,69,54,0.08)'
-    titleColor = '#C24536'
-    subColor = '#8A4038'
     badge = '⚠ конфликт'
+    badgeColor = '#C24536'
+  } else if (l.orphan) {
+    style.border = '1.5px dashed #B07C1F'
+    badge = 'вне плана'
+    badgeColor = '#B07C1F'
   } else if (isSub) {
-    style.border = '1px solid rgba(176,124,31,0.55)'
-    style.background = 'rgba(176,124,31,0.10)'
-    titleColor = '#8A6A28'
-    subColor = '#8A6A28'
     badge = 'замена · ' + effName.split(' ')[0]
+    badgeColor = '#8A6A28'
   } else if (l.manual) {
-    style.border = '1px solid rgba(59,98,196,0.5)'
-    style.background = 'rgba(59,98,196,0.14)'
-    titleColor = '#2A4B9E'
-    subColor = '#3A4A6E'
     badge = 'вручную'
-  } else {
-    style.border = '1px solid rgba(31,138,91,0.4)'
-    style.background = 'rgba(31,138,91,0.12)'
-    titleColor = '#166A45'
+    badgeColor = '#2A4B9E'
   }
   if (ui.sel.indexOf(l.id) >= 0) { style.outline = '2px solid #3B62C4'; style.outlineOffset = '1px' }
   if (ui.flashId === l.id || store.state.newIds.indexOf(l.id) >= 0) style.boxShadow = '0 0 0 2px rgba(59,98,196,0.45)'
@@ -129,8 +131,7 @@ function buildCard(l, d, s) {
       ? ' — ' + issues.map((x) => x.text).join('; ')
       : (l.pin ? ' — закреплена, перегенерация не тронет' : ' — клик: карточка занятия'))
   return {
-    l, d, s, style, titleColor, subColor, badge,
-    dotColor: K.color,
+    l, d, s, style, titleColor, subColor, badge, badgeColor,
     pinMark: l.pin ? ' ⌖' : '',
     sub: who + ', ' + l.room + (ui.view === 'room' ? ', ' + effName : ''),
     tip,
@@ -197,34 +198,39 @@ function onCardDragStart(card, e) {
             @dragend="ui.dragId = null"
             @click.stop="onCardClick(card)"
           >
-            <div class="card-top">
-              <span class="card-dot" :style="{ background: card.dotColor }"></span>
-              <span class="card-title" :style="{ color: card.titleColor }">{{ card.l.disc }}{{ card.pinMark }}</span>
-            </div>
+            <div class="card-title" :style="{ color: card.titleColor }">{{ card.l.disc }}{{ card.pinMark }}</div>
             <div class="card-sub" :style="{ color: card.subColor }">{{ card.sub }}</div>
-            <div v-if="card.badge" class="card-badge" :style="{ color: card.titleColor }">{{ card.badge }}</div>
+            <div v-if="card.badge" class="card-badge" :style="{ color: card.badgeColor }">{{ card.badge }}</div>
           </div>
           <span v-if="cell.tag" class="cell-tag" :style="{ color: cell.tagColor }">{{ cell.tag }}</span>
         </div>
       </template>
     </div>
     <div class="legend">
-      <span class="legend-item">
-        <span class="legend-sw" style="border:1px solid rgba(31,138,91,0.4);background:rgba(31,138,91,0.18)"></span>разложено
-      </span>
-      <span class="legend-item">
-        <span class="legend-sw" style="border:1px solid rgba(59,98,196,0.45);background:rgba(59,98,196,0.14)"></span>вручную
-      </span>
-      <span class="legend-item">
-        <span class="legend-sw" style="border:1.5px solid #B07C1F;background:rgba(176,124,31,0.14)"></span>замена
-      </span>
-      <span class="legend-item">
-        <span class="legend-sw" style="border:1.5px solid #C24536;background:rgba(194,69,54,0.08)"></span>конфликт
-      </span>
-      <span class="legend-item">
-        <span class="legend-sw hatch"></span>праздник
-      </span>
-      <span class="legend-note mono">⌖ закреплено · строка = слот звонков · занятие занимает слот целиком</span>
+      <div class="legend-row">
+        <span class="legend-lead mono">ТИП</span>
+        <span v-for="t in typesInView" :key="t.k" class="legend-item">
+          <span class="legend-sw" :style="{ background: t.bg, border: '1px solid ' + t.bd }"></span>
+          <span :style="{ color: t.dark }">{{ t.label }}</span>
+        </span>
+        <span v-if="!typesInView.length" class="legend-note">нет занятий в подборке</span>
+        <span class="legend-note mono">цвет карточки = тип · полный список: Справочники → Типы занятий</span>
+      </div>
+      <div class="legend-row">
+        <span class="legend-lead mono">ПОМЕТКИ</span>
+        <span class="legend-item">
+          <span class="legend-sw" style="border:1.5px solid #C24536"></span>конфликт
+        </span>
+        <span class="legend-item">
+          <span class="legend-sw" style="border:1.5px dashed #B07C1F"></span>вне плана
+        </span>
+        <span class="legend-item"><span class="legend-badge" style="color:#2A4B9E">вручную</span></span>
+        <span class="legend-item"><span class="legend-badge" style="color:#8A6A28">замена</span></span>
+        <span class="legend-item">
+          <span class="legend-sw hatch"></span>праздник
+        </span>
+        <span class="legend-note mono">⌖ закреплено · занятие занимает слот целиком</span>
+      </div>
     </div>
   </div>
 </template>
@@ -266,13 +272,9 @@ function onCardDragStart(card, e) {
 .cell-tag { font-size: 9.5px; font-weight: 600; text-align: center; margin: auto; }
 
 .card { border-radius: var(--r-sm); padding: 5px 7px; cursor: grab; }
-.card-top { display: flex; align-items: center; gap: 5px; }
-.card-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
 .card-title {
   font-size: 11.5px;
   font-weight: 600;
-  flex: 1;
-  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -287,9 +289,12 @@ function onCardDragStart(card, e) {
   padding: 1px 5px;
 }
 
-.legend { margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(0, 0, 0, 0.12); display: flex; align-items: center; gap: 13px; flex-wrap: wrap; font-size: 11px; color: var(--sub); }
+.legend { margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(0, 0, 0, 0.12); display: flex; flex-direction: column; gap: 7px; font-size: 11px; color: var(--sub); }
+.legend-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.legend-lead { font: 500 9px var(--mono); letter-spacing: 0.06em; color: var(--muted); min-width: 52px; }
 .legend-note { color: var(--faint); }
 .legend-item { display: inline-flex; align-items: center; gap: 5px; }
-.legend-sw { width: 12px; height: 12px; border-radius: 3px; }
+.legend-sw { width: 12px; height: 12px; border-radius: 3px; flex: none; }
 .legend-sw.hatch { background: repeating-linear-gradient(45deg, #EDEAE3, #EDEAE3 3px, #F6F5F2 3px, #F6F5F2 6px); }
+.legend-badge { font: 500 8px var(--mono); background: rgba(0, 0, 0, 0.05); border-radius: 3px; padding: 1px 5px; }
 </style>
