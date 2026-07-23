@@ -19,5 +19,5 @@ class Group:
     """
 
     id: str
-    major_id: str
+    major_id: int
     course: int

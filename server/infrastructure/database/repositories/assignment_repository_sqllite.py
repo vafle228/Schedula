@@ -22,11 +22,11 @@ class AssignmentRepositorySqlLite(AssignmentRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._conn = connection
 
-    def get_all(self) -> dict[str, Assignment]:
+    def get_all(self) -> dict[int, Assignment]:
         rows = self._conn.execute("SELECT * FROM assignments").fetchall()
         return {r["topic_id"]: _row_to_assignment(r) for r in rows}
 
-    def get(self, topic_id: str) -> Assignment | None:
+    def get(self, topic_id: int) -> Assignment | None:
         row = self._conn.execute(
             "SELECT * FROM assignments WHERE topic_id = ?", (topic_id,)
         ).fetchone()
@@ -45,6 +45,6 @@ class AssignmentRepositorySqlLite(AssignmentRepository):
         )
         self._conn.commit()
 
-    def delete(self, topic_id: str) -> None:
+    def delete(self, topic_id: int) -> None:
         self._conn.execute("DELETE FROM assignments WHERE topic_id = ?", (topic_id,))
         self._conn.commit()

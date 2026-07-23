@@ -28,23 +28,23 @@ class TeacherHandlers:
         changes: dict[str, Any] = {}
         if body.get("name") is not None:
             changes["name"] = body["name"]
-        return ser.teacher(self._service.patch(params["id"], changes))
+        return ser.teacher(self._service.patch(int(params["id"]), changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:
-        self._service.delete(params["id"])
+        self._service.delete(int(params["id"]))
         return None
 
     def put_photo(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
-        return ser.teacher(self._service.set_photo(params["id"], body.get("dataUrl")))
+        return ser.teacher(self._service.set_photo(int(params["id"]), body.get("dataUrl")))
 
     def delete_photo(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
-        return ser.teacher(self._service.set_photo(params["id"], None))
+        return ser.teacher(self._service.set_photo(int(params["id"]), None))
 
     def put_constraints(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
         teacher = self._service.set_constraints(
-            params["id"],
+            int(params["id"]),
             hard=body.get("hard", []),
             soft=body.get("soft", []),
             method=body.get("method"),

@@ -11,12 +11,12 @@ class AssignmentRepository(ABC):
     """Persistence port for :class:`Assignment` records (keyed by topic)."""
 
     @abstractmethod
-    def get_all(self) -> dict[str, Assignment]:
+    def get_all(self) -> dict[int, Assignment]:
         """Return every assignment as a ``topic_id -> Assignment`` map."""
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, topic_id: str) -> Assignment | None:
+    def get(self, topic_id: int) -> Assignment | None:
         """Return the assignment for ``topic_id`` or ``None``."""
         raise NotImplementedError
 
@@ -26,6 +26,6 @@ class AssignmentRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, topic_id: str) -> None:
+    def delete(self, topic_id: int) -> None:
         """Remove the assignment for ``topic_id`` (no-op if absent)."""
         raise NotImplementedError

@@ -6,7 +6,6 @@ from collections.abc import Mapping
 from typing import Any
 
 from api.errors import ApiError
-from api.services import ids
 from api.services.base import ServiceBase
 from core.models.major import Major
 from core.repositories.group_repository import GroupRepository
@@ -30,18 +29,18 @@ class MajorService(ServiceBase):
 
     def create(self, code: str, name: str) -> Major:
         """Create a new specialty."""
-        major = Major(id=ids.timestamp_id("nm"), code=code, name=name)
+        major = Major(id=0, code=code, name=name)
         self._majors.add(major)
         return major
 
-    def patch(self, major_id: str, changes: Mapping[str, Any]) -> Major:
+    def patch(self, major_id: int, changes: Mapping[str, Any]) -> Major:
         """Apply ``changes`` to an existing specialty."""
         major = self._require(self._majors.get(major_id), "Специальность не найдена")
         self._apply(major, changes)
         self._majors.update(major)
         return major
 
-    def delete(self, major_id: str) -> None:
+    def delete(self, major_id: int) -> None:
         """Delete a specialty, refusing while it still owns groups.
 
         Raises:

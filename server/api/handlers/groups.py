@@ -21,12 +21,12 @@ class GroupHandlers:
     def list_by_major(
         self, params: Params, query: Query, body: Body
     ) -> list[dict[str, Any]]:
-        return [ser.group(group) for group in self._service.list_by_major(params["id"])]
+        return [ser.group(group) for group in self._service.list_by_major(int(params["id"]))]
 
     def create(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
         group = self._service.create(
-            params["id"], name=body.get("name"), course=body.get("course")
+            int(params["id"]), name=body.get("name"), course=body.get("course")
         )
         return ser.group(group)
 
@@ -36,7 +36,7 @@ class GroupHandlers:
         if body.get("course") is not None:
             changes["course"] = body["course"]
         if body.get("majorId") is not None:
-            changes["major_id"] = body["majorId"]
+            changes["major_id"] = int(body["majorId"])
         return ser.group(self._service.patch(params["id"], changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:

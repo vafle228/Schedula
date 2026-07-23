@@ -74,37 +74,26 @@ def _periods() -> list[Period]:
     ]
 
 
-def _years() -> list[AcademicYear]:
-    return [
-        AcademicYear("y2526", "2025/26", "01.09.2025", "28.12.2025",
-                     "09.02.2026", "31.05.2026", YearStatus.DONE),
-        AcademicYear("y2627", "2026/27", "01.09.2026", "27.12.2026",
-                     "08.02.2027", "30.05.2027", YearStatus.ACTIVE),
-        AcademicYear("y2728", "2027/28", "01.09.2027", "26.12.2027",
-                     "07.02.2028", "28.05.2028", YearStatus.DRAFT),
-    ]
-
-
 def _constraints(
     hard: list[str], soft: list[str], method: int | None, max_per_day: int | None
 ) -> TeacherConstraints:
     return TeacherConstraints(hard=hard, soft=soft, method=method, max_per_day=max_per_day)
 
 
-# (id, name, constraints | None, [(absence_id, type, label), ...])
-_TEACHERS: list[tuple[str, str, TeacherConstraints | None, list[tuple[str, str, str]]]] = [
+# (key, name, constraints | None, [(type, label), ...])
+_TEACHERS: list[tuple[str, str, TeacherConstraints | None, list[tuple[str, str]]]] = [
     ("t1", "Орлова И.К.", _constraints(["0-6", "1-6"], [], 2, 4),
-     [("a1", "vacation", "01–14 сентября"), ("a2", "trip", "20–22 октября")]),
+     [("vacation", "01–14 сентября"), ("trip", "20–22 октября")]),
     ("t2", "Ким Д.С.", _constraints(["0-0", "0-1"], ["4-5", "4-6"], None, 3), []),
     ("t3", "Стеклов П.А.", _constraints([], ["0-0"], 4, 4),
-     [("a3", "vacation", "10–24 марта")]),
+     [("vacation", "10–24 марта")]),
     ("t4", "Белов А.Н.", None, []),
     ("t5", "Юсупова Р.М.", _constraints(["3-5", "3-6", "4-5", "4-6"], [], None, None),
-     [("a4", "vacation", "07–20 октября"), ("a5", "sick", "03–05 ноября")]),
+     [("vacation", "07–20 октября"), ("sick", "03–05 ноября")]),
     ("t6", "Дроздова Е.В.", _constraints([], ["0-5", "0-6"], None, 4), []),
     ("t7", "Гарин О.Л.", None, []),
     ("t8", "Мельник С.С.", _constraints(["2-0", "2-1", "2-2"], [], None, 4),
-     [("a6", "vacation", "01–14 апреля")]),
+     [("vacation", "01–14 апреля")]),
     ("t9", "Ахматова Л.Р.", None, []),
     ("t10", "Козлов В.П.", None, []),
 ]
@@ -116,6 +105,7 @@ _ROOMS: list[tuple[str, str, int]] = [
     ("к.413", "Комп. класс", 25), ("лаб.2", "Лаборатория", 20),
 ]
 
+# (key, code, name)
 _MAJORS: list[tuple[str, str, str]] = [
     ("m1", "09.02.07", "Информационные системы и программирование"),
     ("m2", "09.02.03", "Программирование в компьютерных системах"),
@@ -123,12 +113,13 @@ _MAJORS: list[tuple[str, str, str]] = [
     ("m4", "40.02.04", "Юриспруденция"),
 ]
 
+# (group_name, major_key, course)
 _GROUPS: list[tuple[str, str, int]] = [
     ("ИС-31", "m1", 3), ("ИС-32", "m1", 3), ("ИС-21", "m1", 2), ("ИС-11", "m1", 1),
     ("ПКС-21", "m2", 2), ("ПКС-22", "m2", 2), ("ЭК-11", "m3", 1),
 ]
 
-# (group, discipline, kind, teacher|None, room, placed[(day,slot)...], extra, opts)
+# (group, discipline, kind, teacher_key|None, room, placed[(day,slot)...], extra, opts)
 _SPEC: list[tuple] = [
     ("ИС-31", "Матанализ", "lec", "t1", "214", [(0, 0)], 0, {}),
     ("ИС-31", "Матанализ", "prac", "t1", "214", [(0, 1)], 1, {}),
@@ -209,18 +200,6 @@ def _topic_name(kind: str) -> str:
     return "Теоретический курс" if kind == "lec" else "Практические занятия"
 
 
-class _Counter:
-    """Monotonic id source with a fixed prefix (``d1``, ``tp1``, ``l1`` …)."""
-
-    def __init__(self, prefix: str) -> None:
-        self._prefix = prefix
-        self._n = 0
-
-    def next(self) -> str:
-        self._n += 1
-        return f"{self._prefix}{self._n}"
-
-
 def seed(uow: SqliteUnitOfWork) -> None:
     """Populate an (empty) database with the demo dataset.
 
@@ -229,67 +208,83 @@ def seed(uow: SqliteUnitOfWork) -> None:
     """
     for period in _periods():
         uow.periods.save(period)
-    for year in _years():
+
+    for year_data in [
+        ("2025/26", "01.09.2025", "28.12.2025", "09.02.2026", "31.05.2026", YearStatus.DONE),
+        ("2026/27", "01.09.2026", "27.12.2026", "08.02.2027", "30.05.2027", YearStatus.ACTIVE),
+        ("2027/28", "01.09.2027", "26.12.2027", "07.02.2028", "28.05.2028", YearStatus.DRAFT),
+    ]:
+        name, af, at, sf, st, status = year_data
+        year = AcademicYear(id=0, name=name, aut_from=af, aut_to=at,
+                            spr_from=sf, spr_to=st, status=status)
         uow.years.add(year)
+
     for topic_type in DEFAULT_TOPIC_TYPES:
         uow.topic_types.add(topic_type)
-    for tid, name, constraints, absences in _TEACHERS:
-        uow.teachers.add(Teacher(id=tid, name=name, photo=None, constraints=constraints))
-        for aid, atype, label in absences:
-            uow.absences.add(Absence(aid, tid, AbsenceType(atype), label))
+
+    teacher_ids: dict[str, int] = {}
+    for key, name, constraints, absences_data in _TEACHERS:
+        t = Teacher(id=0, name=name, photo=None, constraints=constraints)
+        uow.teachers.add(t)
+        teacher_ids[key] = t.id
+        for atype, label in absences_data:
+            uow.absences.add(Absence(id=0, teacher_id=t.id, type=AbsenceType(atype), label=label))
+
     for room_id, room_type, capacity in _ROOMS:
         uow.rooms.add(Room(room_id, room_type, capacity))
-    for mid, code, name in _MAJORS:
-        uow.majors.add(Major(mid, code, name))
-    for gid, major_id, course in _GROUPS:
-        uow.groups.add(Group(gid, major_id, course))
 
-    disc_ids = _Counter("d")
-    topic_ids = _Counter("tp")
-    lesson_ids = _Counter("l")
+    major_ids: dict[str, int] = {}
+    for key, code, name in _MAJORS:
+        m = Major(id=0, code=code, name=name)
+        uow.majors.add(m)
+        major_ids[key] = m.id
+
+    for gid, major_key, course in _GROUPS:
+        uow.groups.add(Group(gid, major_ids[major_key], course))
+
     disc_by_key: dict[str, Discipline] = {}
 
-    for group, disc, kind, teacher_id, room_id, placed, extra, opts in _SPEC:
+    for group, disc, kind, teacher_key, room_id, placed, extra, opts in _SPEC:
         key = f"{group}|{disc}"
         discipline = disc_by_key.get(key)
         if discipline is None:
             discipline = Discipline(
-                id=disc_ids.next(), name=disc, group_id=group,
-                period="fall", is_new=False, topics=[],
+                id=0, name=disc, group_id=group, period="fall", is_new=False, topics=[],
             )
-            disc_by_key[key] = discipline
             uow.disciplines.add(discipline)
+            disc_by_key[key] = discipline
 
         pairs = len(placed) + extra
         topic = Topic(
-            id=topic_ids.next(), discipline_id=discipline.id,
+            id=0, discipline_id=discipline.id,
             kind=kind, name=_topic_name(kind), hours=pairs * 32,
         )
         uow.topics.add(topic)
 
-        if teacher_id:
+        teacher_id: int | None = teacher_ids.get(teacher_key) if teacher_key else None
+        if teacher_id is not None:
             uow.assignments.set(Assignment(topic.id, teacher_id, pairs_per_week=pairs))
 
         theme = _THEMES.get(f"{group}|{disc}|{kind}")
         label = theme[0] if theme else ""
         question = theme[1] if theme else ""
-        owner = teacher_id or opts.get("orphanTeacher")
+        orphan_key: str | None = opts.get("orphanTeacher")
+        owner: int | None = teacher_id or (teacher_ids.get(orphan_key) if orphan_key else None)
 
         for i, (day, slot) in enumerate(placed):
             uow.lessons.add(Lesson(
-                id=lesson_ids.next(), topic_id=topic.id, discipline_id=discipline.id,
+                id=0, topic_id=topic.id, discipline_id=discipline.id,
                 group_id=group, teacher_id=owner, room_id=room_id, kind=kind,
                 period="fall", week=1, day=day, slot=slot, sub_by=None,
                 pin=bool(opts.get("pin")), manual=False, ni=i + 1, nt=pairs,
                 topic_label=label, question=question,
             ))
 
-        if teacher_id:
+        if teacher_id is not None:
             for i in range(extra):
                 uow.lessons.add(Lesson(
-                    id=lesson_ids.next(), topic_id=topic.id,
-                    discipline_id=discipline.id, group_id=group,
-                    teacher_id=teacher_id, room_id=room_id, kind=kind,
+                    id=0, topic_id=topic.id, discipline_id=discipline.id,
+                    group_id=group, teacher_id=teacher_id, room_id=room_id, kind=kind,
                     period="fall", week=None, day=None, slot=None, sub_by=None,
                     pin=False, manual=False, ni=len(placed) + i + 1, nt=pairs,
                     topic_label=label, question=question,
@@ -297,14 +292,12 @@ def seed(uow: SqliteUnitOfWork) -> None:
 
     for group, name, period, topics in _EXTRA_PLAN:
         discipline = Discipline(
-            id=disc_ids.next(), name=name, group_id=group,
-            period=period, is_new=False, topics=[],
+            id=0, name=name, group_id=group, period=period, is_new=False, topics=[],
         )
         uow.disciplines.add(discipline)
         for kind, topic_name, hours in topics:
             uow.topics.add(Topic(
-                id=topic_ids.next(), discipline_id=discipline.id,
-                kind=kind, name=topic_name, hours=hours,
+                id=0, discipline_id=discipline.id, kind=kind, name=topic_name, hours=hours,
             ))
 
     uow.commit()

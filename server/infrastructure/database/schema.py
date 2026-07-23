@@ -1,9 +1,13 @@
 """Database schema (DDL) and initialisation.
 
-All identifiers are ``TEXT`` to keep the wire contract byte-identical to the
-frontend (``t1``, ``d1``, ``ИС-31``, ``lec`` …). Structured sub-objects that
-have no query needs — period ``slots``/``active_days``/``holidays`` and teacher
-``constraints`` — are stored as JSON ``TEXT`` and hydrated by the repositories.
+Auto-generated identifiers use ``INTEGER PRIMARY KEY`` (SQLite rowid alias,
+effectively AUTOINCREMENT). Semantic/natural keys that double as display names
+— ``periods.id`` (``fall``/``spring``), ``rooms.id``, ``groups.id``,
+``topic_types.k`` — stay ``TEXT``.
+
+Structured sub-objects that have no query needs — period
+``slots``/``active_days``/``holidays`` and teacher ``constraints`` — are stored
+as JSON ``TEXT`` and hydrated by the repositories.
 
 Insertion order (which several list endpoints preserve) is read back via each
 table's implicit ``rowid``; no explicit ordering column is needed.
@@ -28,7 +32,7 @@ CREATE TABLE IF NOT EXISTS periods (
 );
 
 CREATE TABLE IF NOT EXISTS academic_years (
-    id       TEXT PRIMARY KEY,
+    id       INTEGER PRIMARY KEY,
     name     TEXT NOT NULL,
     aut_from TEXT NOT NULL,
     aut_to   TEXT NOT NULL,
@@ -46,15 +50,15 @@ CREATE TABLE IF NOT EXISTS topic_types (
 );
 
 CREATE TABLE IF NOT EXISTS teachers (
-    id          TEXT PRIMARY KEY,
+    id          INTEGER PRIMARY KEY,
     name        TEXT NOT NULL,
     photo       TEXT,
     constraints TEXT               -- JSON: {hard,soft,method,max} or NULL
 );
 
 CREATE TABLE IF NOT EXISTS absences (
-    id         TEXT PRIMARY KEY,
-    teacher_id TEXT NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
+    id         INTEGER PRIMARY KEY,
+    teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
     type       TEXT NOT NULL,
     label      TEXT NOT NULL DEFAULT ''
 );
@@ -66,19 +70,19 @@ CREATE TABLE IF NOT EXISTS rooms (
 );
 
 CREATE TABLE IF NOT EXISTS majors (
-    id   TEXT PRIMARY KEY,
+    id   INTEGER PRIMARY KEY,
     code TEXT NOT NULL,
     name TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS groups (
     id       TEXT PRIMARY KEY,
-    major_id TEXT NOT NULL REFERENCES majors(id),
+    major_id INTEGER NOT NULL REFERENCES majors(id),
     course   INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS disciplines (
-    id       TEXT PRIMARY KEY,
+    id       INTEGER PRIMARY KEY,
     name     TEXT NOT NULL,
     group_id TEXT NOT NULL REFERENCES groups(id),
     period   TEXT NOT NULL,
@@ -86,32 +90,32 @@ CREATE TABLE IF NOT EXISTS disciplines (
 );
 
 CREATE TABLE IF NOT EXISTS topics (
-    id            TEXT PRIMARY KEY,
-    discipline_id TEXT NOT NULL REFERENCES disciplines(id) ON DELETE CASCADE,
+    id            INTEGER PRIMARY KEY,
+    discipline_id INTEGER NOT NULL REFERENCES disciplines(id) ON DELETE CASCADE,
     kind          TEXT NOT NULL,
     name          TEXT NOT NULL,
     hours         INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS assignments (
-    topic_id       TEXT PRIMARY KEY REFERENCES topics(id) ON DELETE CASCADE,
-    teacher_id     TEXT NOT NULL REFERENCES teachers(id),
+    topic_id       INTEGER PRIMARY KEY REFERENCES topics(id) ON DELETE CASCADE,
+    teacher_id     INTEGER NOT NULL REFERENCES teachers(id),
     pairs_per_week INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS lessons (
-    id            TEXT PRIMARY KEY,
-    topic_id      TEXT,
-    discipline_id TEXT,
+    id            INTEGER PRIMARY KEY,
+    topic_id      INTEGER,
+    discipline_id INTEGER,
     group_id      TEXT NOT NULL,
-    teacher_id    TEXT,
+    teacher_id    INTEGER,
     room_id       TEXT,
     kind          TEXT NOT NULL,
     period        TEXT NOT NULL,
     week          INTEGER,
     day           INTEGER,
     slot          INTEGER,
-    sub_by        TEXT,
+    sub_by        INTEGER,
     pin           INTEGER NOT NULL DEFAULT 0,
     manual        INTEGER NOT NULL DEFAULT 1,
     ni            INTEGER NOT NULL DEFAULT 1,

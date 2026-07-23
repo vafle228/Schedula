@@ -33,8 +33,8 @@ class MajorHandlers:
             changes["code"] = body["code"]
         if "name" in body:
             changes["name"] = body["name"]
-        return ser.major(self._service.patch(params["id"], changes))
+        return ser.major(self._service.patch(int(params["id"]), changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:
-        self._service.delete(params["id"])
+        self._service.delete(int(params["id"]))
         return None

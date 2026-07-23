@@ -20,14 +20,14 @@ class Absence:
     """A period during which the teacher is away.
 
     Attributes:
-        id: Stable identifier, e.g. ``"a1"``.
+        id: Auto-assigned integer primary key.
         teacher_id: Owning teacher.
         type: Reason for the absence.
         label: Free-text human span, e.g. ``"01–14 сентября"``.
     """
 
-    id: str
-    teacher_id: str
+    id: int
+    teacher_id: int
     type: AbsenceType
     label: str = ""
 
@@ -57,7 +57,7 @@ class Teacher:
     """A teacher and their attached scheduling data.
 
     Attributes:
-        id: Stable identifier, e.g. ``"t1"``.
+        id: Auto-assigned integer primary key.
         name: Display name, e.g. ``"Орлова И.К."``.
         photo: Data-URL of the avatar, or ``None``.
         constraints: Scheduling constraints, or ``None`` when unset. A teacher
@@ -65,7 +65,7 @@ class Teacher:
         absences: Owned absence periods.
     """
 
-    id: str
+    id: int
     name: str
     photo: str | None = None
     constraints: TeacherConstraints | None = None

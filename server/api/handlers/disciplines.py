@@ -43,8 +43,8 @@ class DisciplineHandlers:
             changes["period"] = body["period"]
         if "isNew" in body:
             changes["is_new"] = body["isNew"]
-        return ser.discipline(self._service.patch(params["id"], changes))
+        return ser.discipline(self._service.patch(int(params["id"]), changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:
-        self._service.delete(params["id"])
+        self._service.delete(int(params["id"]))
         return None

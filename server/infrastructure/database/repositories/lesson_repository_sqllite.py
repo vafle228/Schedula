@@ -38,7 +38,6 @@ def _row_to_lesson(row: sqlite3.Row) -> Lesson:
 
 def _params(lesson: Lesson) -> dict[str, object]:
     return {
-        "id": lesson.id,
         "topic_id": lesson.topic_id,
         "discipline_id": lesson.discipline_id,
         "group_id": lesson.group_id,
@@ -78,30 +77,35 @@ class LessonRepositorySqlLite(LessonRepository):
         ).fetchall()
         return [_row_to_lesson(r) for r in rows]
 
-    def list_by_topic(self, topic_id: str) -> list[Lesson]:
+    def list_by_topic(self, topic_id: int) -> list[Lesson]:
         rows = self._conn.execute(
             f"SELECT {_COLUMNS} FROM lessons WHERE topic_id = ? ORDER BY rowid",
             (topic_id,),
         ).fetchall()
         return [_row_to_lesson(r) for r in rows]
 
-    def get(self, lesson_id: str) -> Lesson | None:
+    def get(self, lesson_id: int) -> Lesson | None:
         row = self._conn.execute(
             f"SELECT {_COLUMNS} FROM lessons WHERE id = ?", (lesson_id,)
         ).fetchone()
         return _row_to_lesson(row) if row else None
 
-    def add(self, lesson: Lesson) -> None:
-        self._conn.execute(
-            f"""
-            INSERT INTO lessons ({_COLUMNS})
-            VALUES (:id, :topic_id, :discipline_id, :group_id, :teacher_id,
+    def add(self, lesson: Lesson) -> int:
+        p = _params(lesson)
+        cursor = self._conn.execute(
+            """
+            INSERT INTO lessons (topic_id, discipline_id, group_id, teacher_id,
+                    room_id, kind, period, week, day, slot, sub_by,
+                    pin, manual, ni, nt, topic_label, question)
+            VALUES (:topic_id, :discipline_id, :group_id, :teacher_id,
                     :room_id, :kind, :period, :week, :day, :slot, :sub_by,
                     :pin, :manual, :ni, :nt, :topic_label, :question)
             """,
-            _params(lesson),
+            p,
         )
         self._conn.commit()
+        lesson.id = cursor.lastrowid
+        return lesson.id
 
     def update(self, lesson: Lesson) -> None:
         self._conn.execute(
@@ -114,14 +118,14 @@ class LessonRepositorySqlLite(LessonRepository):
                 ni = :ni, nt = :nt, topic_label = :topic_label, question = :question
             WHERE id = :id
             """,
-            _params(lesson),
+            {**_params(lesson), "id": lesson.id},
         )
         self._conn.commit()
 
-    def delete(self, lesson_id: str) -> None:
+    def delete(self, lesson_id: int) -> None:
         self._conn.execute("DELETE FROM lessons WHERE id = ?", (lesson_id,))
         self._conn.commit()
 
-    def delete_by_topic(self, topic_id: str) -> None:
+    def delete_by_topic(self, topic_id: int) -> None:
         self._conn.execute("DELETE FROM lessons WHERE topic_id = ?", (topic_id,))
         self._conn.commit()

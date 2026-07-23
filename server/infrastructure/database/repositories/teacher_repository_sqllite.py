@@ -48,7 +48,7 @@ class TeacherRepositorySqlLite(TeacherRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._conn = connection
 
-    def _absences_for(self, teacher_id: str) -> list[Absence]:
+    def _absences_for(self, teacher_id: int) -> list[Absence]:
         rows = self._conn.execute(
             "SELECT * FROM absences WHERE teacher_id = ? ORDER BY rowid",
             (teacher_id,),
@@ -68,23 +68,24 @@ class TeacherRepositorySqlLite(TeacherRepository):
         rows = self._conn.execute("SELECT * FROM teachers ORDER BY rowid").fetchall()
         return [self._row_to_teacher(r) for r in rows]
 
-    def get(self, teacher_id: str) -> Teacher | None:
+    def get(self, teacher_id: int) -> Teacher | None:
         row = self._conn.execute(
             "SELECT * FROM teachers WHERE id = ?", (teacher_id,)
         ).fetchone()
         return self._row_to_teacher(row) if row else None
 
-    def add(self, teacher: Teacher) -> None:
-        self._conn.execute(
-            "INSERT INTO teachers (id, name, photo, constraints) VALUES (?, ?, ?, ?)",
+    def add(self, teacher: Teacher) -> int:
+        cursor = self._conn.execute(
+            "INSERT INTO teachers (name, photo, constraints) VALUES (?, ?, ?)",
             (
-                teacher.id,
                 teacher.name,
                 teacher.photo,
                 _constraints_to_json(teacher.constraints),
             ),
         )
         self._conn.commit()
+        teacher.id = cursor.lastrowid
+        return teacher.id
 
     def update(self, teacher: Teacher) -> None:
         self._conn.execute(
@@ -98,6 +99,6 @@ class TeacherRepositorySqlLite(TeacherRepository):
         )
         self._conn.commit()
 
-    def delete(self, teacher_id: str) -> None:
+    def delete(self, teacher_id: int) -> None:
         self._conn.execute("DELETE FROM teachers WHERE id = ?", (teacher_id,))
         self._conn.commit()

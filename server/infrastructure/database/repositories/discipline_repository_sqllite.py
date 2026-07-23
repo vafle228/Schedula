@@ -23,12 +23,13 @@ def _row_to_topic(row: sqlite3.Row) -> Topic:
     )
 
 
-def _insert_topic(conn: sqlite3.Connection, topic: Topic) -> None:
-    conn.execute(
-        "INSERT INTO topics (id, discipline_id, kind, name, hours) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (topic.id, topic.discipline_id, topic.kind, topic.name, topic.hours),
+def _insert_topic(conn: sqlite3.Connection, topic: Topic) -> int:
+    cursor = conn.execute(
+        "INSERT INTO topics (discipline_id, kind, name, hours) VALUES (?, ?, ?, ?)",
+        (topic.discipline_id, topic.kind, topic.name, topic.hours),
     )
+    topic.id = cursor.lastrowid
+    return topic.id
 
 
 class DisciplineRepositorySqlLite(DisciplineRepository):
@@ -37,7 +38,7 @@ class DisciplineRepositorySqlLite(DisciplineRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._conn = connection
 
-    def _topics_for(self, discipline_id: str) -> list[Topic]:
+    def _topics_for(self, discipline_id: int) -> list[Topic]:
         rows = self._conn.execute(
             "SELECT * FROM topics WHERE discipline_id = ? ORDER BY rowid",
             (discipline_id,),
@@ -60,27 +61,27 @@ class DisciplineRepositorySqlLite(DisciplineRepository):
         ).fetchall()
         return [self._row_to_discipline(r) for r in rows]
 
-    def get(self, discipline_id: str) -> Discipline | None:
+    def get(self, discipline_id: int) -> Discipline | None:
         row = self._conn.execute(
             "SELECT * FROM disciplines WHERE id = ?", (discipline_id,)
         ).fetchone()
         return self._row_to_discipline(row) if row else None
 
-    def add(self, discipline: Discipline) -> None:
-        self._conn.execute(
-            "INSERT INTO disciplines (id, name, group_id, period, is_new) "
-            "VALUES (?, ?, ?, ?, ?)",
+    def add(self, discipline: Discipline) -> int:
+        cursor = self._conn.execute(
+            "INSERT INTO disciplines (name, group_id, period, is_new) VALUES (?, ?, ?, ?)",
             (
-                discipline.id,
                 discipline.name,
                 discipline.group_id,
                 discipline.period,
                 int(discipline.is_new),
             ),
         )
+        discipline.id = cursor.lastrowid
         for topic in discipline.topics:
             _insert_topic(self._conn, topic)
         self._conn.commit()
+        return discipline.id
 
     def update(self, discipline: Discipline) -> None:
         self._conn.execute(
@@ -96,7 +97,7 @@ class DisciplineRepositorySqlLite(DisciplineRepository):
         )
         self._conn.commit()
 
-    def delete(self, discipline_id: str) -> None:
+    def delete(self, discipline_id: int) -> None:
         # topics cascade via the FK; assignments cascade off topics in turn
         self._conn.execute("DELETE FROM disciplines WHERE id = ?", (discipline_id,))
         self._conn.commit()
@@ -108,22 +109,23 @@ class TopicRepositorySqlLite(TopicRepository):
     def __init__(self, connection: sqlite3.Connection) -> None:
         self._conn = connection
 
-    def get(self, topic_id: str) -> Topic | None:
+    def get(self, topic_id: int) -> Topic | None:
         row = self._conn.execute(
             "SELECT * FROM topics WHERE id = ?", (topic_id,)
         ).fetchone()
         return _row_to_topic(row) if row else None
 
-    def list_by_discipline(self, discipline_id: str) -> list[Topic]:
+    def list_by_discipline(self, discipline_id: int) -> list[Topic]:
         rows = self._conn.execute(
             "SELECT * FROM topics WHERE discipline_id = ? ORDER BY rowid",
             (discipline_id,),
         ).fetchall()
         return [_row_to_topic(r) for r in rows]
 
-    def add(self, topic: Topic) -> None:
-        _insert_topic(self._conn, topic)
+    def add(self, topic: Topic) -> int:
+        result = _insert_topic(self._conn, topic)
         self._conn.commit()
+        return result
 
     def update(self, topic: Topic) -> None:
         self._conn.execute(
@@ -132,6 +134,6 @@ class TopicRepositorySqlLite(TopicRepository):
         )
         self._conn.commit()
 
-    def delete(self, topic_id: str) -> None:
+    def delete(self, topic_id: int) -> None:
         self._conn.execute("DELETE FROM topics WHERE id = ?", (topic_id,))
         self._conn.commit()

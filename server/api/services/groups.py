@@ -33,11 +33,11 @@ class GroupService(ServiceBase):
         """Return every group."""
         return self._groups.list_all()
 
-    def list_by_major(self, major_id: str) -> list[Group]:
+    def list_by_major(self, major_id: int) -> list[Group]:
         """Return the groups of a single specialty."""
         return self._groups.list_by_major(major_id)
 
-    def create(self, major_id: str, name: str, course: int) -> Group:
+    def create(self, major_id: int, name: str, course: int) -> Group:
         """Create a group under ``major_id``.
 
         Raises:

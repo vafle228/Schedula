@@ -16,6 +16,6 @@ class Assignment:
             2 / weeks_count))``); drives how many lesson slots the topic owns.
     """
 
-    topic_id: str
-    teacher_id: str
+    topic_id: int
+    teacher_id: int
     pairs_per_week: int

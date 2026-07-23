@@ -16,7 +16,7 @@ class GroupRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_major(self, major_id: str) -> list[Group]:
+    def list_by_major(self, major_id: int) -> list[Group]:
         """Return groups owned by ``major_id``."""
         raise NotImplementedError
 
@@ -27,7 +27,7 @@ class GroupRepository(ABC):
 
     @abstractmethod
     def add(self, group: Group) -> None:
-        """Insert a new group."""
+        """Insert a new group (``group.id`` is the user-supplied name)."""
         raise NotImplementedError
 
     @abstractmethod

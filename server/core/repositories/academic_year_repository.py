@@ -16,13 +16,13 @@ class AcademicYearRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, year_id: str) -> AcademicYear | None:
+    def get(self, year_id: int) -> AcademicYear | None:
         """Return the year with ``year_id`` or ``None``."""
         raise NotImplementedError
 
     @abstractmethod
-    def add(self, year: AcademicYear) -> None:
-        """Insert a new academic year."""
+    def add(self, year: AcademicYear) -> int:
+        """Insert a new academic year, set ``year.id`` to the assigned key, and return it."""
         raise NotImplementedError
 
     @abstractmethod
@@ -31,6 +31,6 @@ class AcademicYearRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, year_id: str) -> None:
+    def delete(self, year_id: int) -> None:
         """Remove the year with ``year_id`` (no-op if absent)."""
         raise NotImplementedError

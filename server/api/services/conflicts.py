@@ -19,16 +19,16 @@ from core.models.teacher import Teacher
 class EnrichedLesson:
     """Flat lesson view used by the conflict engine and the generator."""
 
-    id: str
+    id: int
     g: str  # group id
     disc: str  # discipline name
-    t: str | None  # staff teacher id
+    t: int | None  # staff teacher id
     room: str | None
     kind: str
     w: int | None  # week (1-based)
     d: int | None  # day (0 = Monday)
     s: int | None  # slot index
-    sub_by: str | None  # substitute teacher id
+    sub_by: int | None  # substitute teacher id
     pin: bool
     orphan: bool
 
@@ -62,9 +62,9 @@ def analyze(
         ``{"byId": {lessonId: [{"sev", "text"}]}, "hardN", "softN", "orphanN"}``
         where ``sev`` is ``"hard" | "soft" | "orphan"``.
     """
-    by_id: dict[str, list[dict[str, str]]] = {}
+    by_id: dict[int, list[dict[str, str]]] = {}
 
-    def add(lesson_id: str, sev: str, text: str) -> None:
+    def add(lesson_id: int, sev: str, text: str) -> None:
         by_id.setdefault(lesson_id, []).append({"sev": sev, "text": text})
 
     tmap = {t.id: t for t in teachers}

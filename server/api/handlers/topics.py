@@ -18,7 +18,7 @@ class TopicHandlers:
     def create(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
         topic = self._service.create(
-            params["id"],
+            int(params["id"]),
             kind=body.get("kind"), name=body.get("name"), hours=body.get("hours"),
         )
         return ser.topic(topic)
@@ -32,8 +32,8 @@ class TopicHandlers:
             changes["name"] = body["name"]
         if "hours" in body:
             changes["hours"] = body["hours"]
-        return ser.topic(self._service.patch(params["id"], changes))
+        return ser.topic(self._service.patch(int(params["id"]), changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:
-        self._service.delete(params["id"])
+        self._service.delete(int(params["id"]))
         return None

@@ -19,7 +19,7 @@ class AbsenceHandlers:
     def create(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
         absence = self._service.create(
-            params["id"],
+            int(params["id"]),
             absence_type=AbsenceType(body.get("type")),
             label=body.get("label") or "",
         )
@@ -32,8 +32,8 @@ class AbsenceHandlers:
             changes["type"] = AbsenceType(body["type"])
         if "label" in body:
             changes["label"] = body["label"]
-        return ser.absence(self._service.patch(params["id"], changes))
+        return ser.absence(self._service.patch(int(params["id"]), changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:
-        self._service.delete(params["id"])
+        self._service.delete(int(params["id"]))
         return None

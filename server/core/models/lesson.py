@@ -36,18 +36,18 @@ class Lesson:
         question: Study question / subtopic text.
     """
 
-    id: str
+    id: int
     group_id: str
     kind: str
     period: str
-    topic_id: str | None = None
-    discipline_id: str | None = None
-    teacher_id: str | None = None
+    topic_id: int | None = None
+    discipline_id: int | None = None
+    teacher_id: int | None = None
     room_id: str | None = None
     week: int | None = None
     day: int | None = None
     slot: int | None = None
-    sub_by: str | None = None
+    sub_by: int | None = None
     pin: bool = False
     manual: bool = True
     ni: int = 1

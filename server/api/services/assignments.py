@@ -24,22 +24,22 @@ class AssignmentService(ServiceBase):
         self._disciplines = disciplines
         self._sync = sync
 
-    def list_all(self) -> dict[str, Assignment]:
+    def list_all(self) -> dict[int, Assignment]:
         """Return the full ``topic_id -> Assignment`` map."""
         return self._assignments.get_all()
 
-    def set(self, topic_id: str, teacher_id: str | None) -> Assignment | None:
+    def set(self, topic_id: int, teacher_id: int | None) -> Assignment | None:
         """Assign (or clear with ``None``) a topic and return the result."""
         self._sync.set_assignment(topic_id, teacher_id)
         return self._assignments.get(topic_id)
 
-    def clear(self, topic_id: str) -> None:
+    def clear(self, topic_id: int) -> None:
         """Remove a topic's assignment and reconcile its lessons."""
         self._sync.set_assignment(topic_id, None)
 
     def assign_discipline(
-        self, discipline_id: str, teacher_id: str | None
-    ) -> list[str]:
+        self, discipline_id: int, teacher_id: int | None
+    ) -> list[int]:
         """Assign every still-unassigned topic of a discipline to a teacher.
 
         Returns:
@@ -51,14 +51,16 @@ class AssignmentService(ServiceBase):
         discipline = self._require(
             self._disciplines.get(discipline_id), "Дисциплина не найдена"
         )
-        touched: list[str] = []
+        touched: list[int] = []
         for topic in discipline.topics:
             if self._assignments.get(topic.id) is None:
                 self._sync.set_assignment(topic.id, teacher_id)
                 touched.append(topic.id)
         return touched
 
-    def batch(self, ops: Sequence[tuple[str, str | None]]) -> dict[str, Assignment]:
+    def batch(
+        self, ops: Sequence[tuple[int, int | None]]
+    ) -> dict[int, Assignment]:
         """Apply a batch of ``(topic_id, teacher_id)`` operations."""
         for topic_id, teacher_id in ops:
             self._sync.set_assignment(topic_id, teacher_id)

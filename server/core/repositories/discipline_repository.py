@@ -19,13 +19,13 @@ class DisciplineRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, discipline_id: str) -> Discipline | None:
+    def get(self, discipline_id: int) -> Discipline | None:
         """Return the discipline with ``discipline_id`` (topics included)."""
         raise NotImplementedError
 
     @abstractmethod
-    def add(self, discipline: Discipline) -> None:
-        """Insert a discipline together with its topics."""
+    def add(self, discipline: Discipline) -> int:
+        """Insert a discipline, set ``discipline.id`` to the assigned key, and return it."""
         raise NotImplementedError
 
     @abstractmethod
@@ -34,7 +34,7 @@ class DisciplineRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, discipline_id: str) -> None:
+    def delete(self, discipline_id: int) -> None:
         """Remove the discipline and cascade to its topics."""
         raise NotImplementedError
 
@@ -43,18 +43,18 @@ class TopicRepository(ABC):
     """Persistence port for :class:`Topic` entities."""
 
     @abstractmethod
-    def get(self, topic_id: str) -> Topic | None:
+    def get(self, topic_id: int) -> Topic | None:
         """Return the topic with ``topic_id`` or ``None``."""
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_discipline(self, discipline_id: str) -> list[Topic]:
+    def list_by_discipline(self, discipline_id: int) -> list[Topic]:
         """Return topics owned by ``discipline_id``."""
         raise NotImplementedError
 
     @abstractmethod
-    def add(self, topic: Topic) -> None:
-        """Insert a new topic."""
+    def add(self, topic: Topic) -> int:
+        """Insert a new topic, set ``topic.id`` to the assigned key, and return it."""
         raise NotImplementedError
 
     @abstractmethod
@@ -63,6 +63,6 @@ class TopicRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, topic_id: str) -> None:
+    def delete(self, topic_id: int) -> None:
         """Remove the topic with ``topic_id`` (no-op if absent)."""
         raise NotImplementedError

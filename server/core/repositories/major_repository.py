@@ -16,13 +16,13 @@ class MajorRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, major_id: str) -> Major | None:
+    def get(self, major_id: int) -> Major | None:
         """Return the major with ``major_id`` or ``None``."""
         raise NotImplementedError
 
     @abstractmethod
-    def add(self, major: Major) -> None:
-        """Insert a new major."""
+    def add(self, major: Major) -> int:
+        """Insert a new major, set ``major.id`` to the assigned key, and return it."""
         raise NotImplementedError
 
     @abstractmethod
@@ -31,6 +31,6 @@ class MajorRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, major_id: str) -> None:
+    def delete(self, major_id: int) -> None:
         """Remove the major with ``major_id`` (no-op if absent)."""
         raise NotImplementedError

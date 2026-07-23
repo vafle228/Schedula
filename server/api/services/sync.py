@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import math
 
-from api.services import ids
 from api.services.base import ServiceBase
 from api.services.conflicts import EnrichedLesson
 from core.models.assignment import Assignment
@@ -61,7 +60,7 @@ class LessonSyncService(ServiceBase):
         weeks = period.weeks_count or 16
         return max(1, math.floor(topic.hours / 2 / weeks + 0.5))
 
-    def set_assignment(self, topic_id: str, teacher_id: str | None) -> None:
+    def set_assignment(self, topic_id: int, teacher_id: int | None) -> None:
         """Assign (or clear with ``None``) a topic's teacher, then reconcile.
 
         Raises:
@@ -83,7 +82,7 @@ class LessonSyncService(ServiceBase):
 
         self.sync_topic(topic_id)
 
-    def sync_topic(self, topic_id: str) -> None:
+    def sync_topic(self, topic_id: int) -> None:
         """Reconcile a topic's auto lessons with its assignment state."""
         topic = self._topics.get(topic_id)
         discipline = self._disciplines.get(topic.discipline_id) if topic else None
@@ -119,8 +118,8 @@ class LessonSyncService(ServiceBase):
 
         have = len([l for l in self._lessons.list_by_topic(topic_id) if not l.manual])
         for _ in range(have, target):
-            self._lessons.add(Lesson(
-                id=ids.next_lesson_id(self._lessons),
+            lesson = Lesson(
+                id=0,
                 topic_id=topic_id,
                 discipline_id=discipline.id,
                 group_id=discipline.group_id,
@@ -131,7 +130,8 @@ class LessonSyncService(ServiceBase):
                 week=None, day=None, slot=None, sub_by=None,
                 pin=False, manual=False, ni=0, nt=target,
                 topic_label="", question="",
-            ))
+            )
+            self._lessons.add(lesson)
 
         ni = 0
         for lesson in self._lessons.list_by_topic(topic_id):

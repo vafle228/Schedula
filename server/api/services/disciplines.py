@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from api.services import ids
 from api.services.base import ServiceBase
 from core.models.discipline import Discipline, Topic
 from core.repositories.discipline_repository import (
@@ -42,19 +41,18 @@ class DisciplineService(ServiceBase):
     ) -> Discipline:
         """Create a discipline and its seed topics (``(kind, name, hours)``)."""
         discipline = Discipline(
-            id=ids.next_discipline_id(self._disciplines), name=name,
-            group_id=group_id, period=period, is_new=True, topics=[],
+            id=0, name=name, group_id=group_id, period=period, is_new=True, topics=[],
         )
         self._disciplines.add(discipline)
         for kind, topic_name, hours in topic_specs:
             self._topics.add(Topic(
-                id=ids.next_topic_id(self._disciplines),
+                id=0,
                 discipline_id=discipline.id,
                 kind=kind, name=topic_name, hours=hours,
             ))
         return self._require(self._disciplines.get(discipline.id), "Дисциплина не найдена")
 
-    def patch(self, discipline_id: str, changes: Mapping[str, Any]) -> Discipline:
+    def patch(self, discipline_id: int, changes: Mapping[str, Any]) -> Discipline:
         """Apply ``changes`` to an existing discipline."""
         discipline = self._require(
             self._disciplines.get(discipline_id), "Дисциплина не найдена"
@@ -65,7 +63,7 @@ class DisciplineService(ServiceBase):
             self._disciplines.get(discipline.id), "Дисциплина не найдена"
         )
 
-    def delete(self, discipline_id: str) -> None:
+    def delete(self, discipline_id: int) -> None:
         """Delete a discipline and the lessons of its topics.
 
         Topics and assignments cascade in the database; lessons carry no FK

@@ -22,18 +22,20 @@ class MajorRepositorySqlLite(MajorRepository):
         rows = self._conn.execute("SELECT * FROM majors ORDER BY rowid").fetchall()
         return [_row_to_major(r) for r in rows]
 
-    def get(self, major_id: str) -> Major | None:
+    def get(self, major_id: int) -> Major | None:
         row = self._conn.execute(
             "SELECT * FROM majors WHERE id = ?", (major_id,)
         ).fetchone()
         return _row_to_major(row) if row else None
 
-    def add(self, major: Major) -> None:
-        self._conn.execute(
-            "INSERT INTO majors (id, code, name) VALUES (?, ?, ?)",
-            (major.id, major.code, major.name),
+    def add(self, major: Major) -> int:
+        cursor = self._conn.execute(
+            "INSERT INTO majors (code, name) VALUES (?, ?)",
+            (major.code, major.name),
         )
         self._conn.commit()
+        major.id = cursor.lastrowid
+        return major.id
 
     def update(self, major: Major) -> None:
         self._conn.execute(
@@ -42,6 +44,6 @@ class MajorRepositorySqlLite(MajorRepository):
         )
         self._conn.commit()
 
-    def delete(self, major_id: str) -> None:
+    def delete(self, major_id: int) -> None:
         self._conn.execute("DELETE FROM majors WHERE id = ?", (major_id,))
         self._conn.commit()

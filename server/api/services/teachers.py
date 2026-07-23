@@ -6,7 +6,6 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from api.errors import ApiError
-from api.services import ids
 from api.services.base import ServiceBase
 from core.models.teacher import Teacher, TeacherConstraints
 from core.repositories.assignment_repository import AssignmentRepository
@@ -33,21 +32,18 @@ class TeacherService(ServiceBase):
 
     def create(self, name: str, photo: str | None) -> Teacher:
         """Create a teacher with no constraints or absences."""
-        teacher = Teacher(
-            id=ids.timestamp_id("nt"), name=name,
-            photo=photo, constraints=None, absences=[],
-        )
+        teacher = Teacher(id=0, name=name, photo=photo, constraints=None, absences=[])
         self._teachers.add(teacher)
         return teacher
 
-    def patch(self, teacher_id: str, changes: Mapping[str, Any]) -> Teacher:
+    def patch(self, teacher_id: int, changes: Mapping[str, Any]) -> Teacher:
         """Apply ``changes`` (currently the name) to a teacher."""
         teacher = self._get(teacher_id)
         self._apply(teacher, changes)
         self._teachers.update(teacher)
         return teacher
 
-    def delete(self, teacher_id: str) -> None:
+    def delete(self, teacher_id: int) -> None:
         """Delete a teacher, refusing while assignments or lessons remain.
 
         Raises:
@@ -63,7 +59,7 @@ class TeacherService(ServiceBase):
             raise ApiError(409, "На преподавателя есть назначения или занятия")
         self._teachers.delete(teacher_id)
 
-    def set_photo(self, teacher_id: str, photo: str | None) -> Teacher:
+    def set_photo(self, teacher_id: int, photo: str | None) -> Teacher:
         """Set (or clear with ``None``) a teacher's photo."""
         teacher = self._get(teacher_id)
         teacher.photo = photo
@@ -72,7 +68,7 @@ class TeacherService(ServiceBase):
 
     def set_constraints(
         self,
-        teacher_id: str,
+        teacher_id: int,
         *,
         hard: Sequence[str],
         soft: Sequence[str],
@@ -87,5 +83,5 @@ class TeacherService(ServiceBase):
         self._teachers.update(teacher)
         return teacher
 
-    def _get(self, teacher_id: str) -> Teacher:
+    def _get(self, teacher_id: int) -> Teacher:
         return self._require(self._teachers.get(teacher_id), "Преподаватель не найден")

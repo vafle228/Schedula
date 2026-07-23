@@ -10,7 +10,7 @@ from api.services.lessons import LessonService
 
 # Wire (camelCase) → domain (snake_case) attribute names for a lesson.
 _LESSON_FIELDS: Final[dict[str, str]] = {
-    "id": "id", "topicId": "topic_id", "disciplineId": "discipline_id",
+    "topicId": "topic_id", "disciplineId": "discipline_id",
     "groupId": "group_id", "teacherId": "teacher_id", "roomId": "room_id",
     "kind": "kind", "period": "period", "week": "week", "day": "day", "slot": "slot",
     "subBy": "sub_by", "pin": "pin", "manual": "manual", "ni": "ni", "nt": "nt",
@@ -34,18 +34,17 @@ class LessonHandlers:
     def patch(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
         changes = self._to_attrs(body)
-        changes.pop("id", None)
-        return ser.lesson(self._service.patch(params["id"], changes))
+        return ser.lesson(self._service.patch(int(params["id"]), changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:
-        self._service.delete(params["id"])
+        self._service.delete(int(params["id"]))
         return None
 
     def pin(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
-        return ser.lesson(self._service.set_pin(params["id"], True))
+        return ser.lesson(self._service.set_pin(int(params["id"]), True))
 
     def unpin(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
-        return ser.lesson(self._service.set_pin(params["id"], False))
+        return ser.lesson(self._service.set_pin(int(params["id"]), False))
 
     @staticmethod
     def _to_attrs(body: dict[str, Any]) -> dict[str, Any]:

@@ -28,7 +28,7 @@ class YearHandlers:
         return ser.year(year)
 
     def activate(self, params: Params, query: Query, body: Body) -> list[dict[str, Any]]:
-        return [ser.year(year) for year in self._service.activate(params["id"])]
+        return [ser.year(year) for year in self._service.activate(int(params["id"]))]
 
     def delete(self, params: Params, query: Query, body: Body) -> list[dict[str, Any]]:
-        return [ser.year(year) for year in self._service.delete(params["id"])]
+        return [ser.year(year) for year in self._service.delete(int(params["id"]))]

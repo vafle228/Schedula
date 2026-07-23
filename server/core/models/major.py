@@ -10,11 +10,11 @@ class Major:
     """A study programme.
 
     Attributes:
-        id: Stable identifier, e.g. ``"m1"``.
+        id: Auto-assigned integer primary key.
         code: Official code, e.g. ``"09.02.07"``.
         name: Full programme name.
     """
 
-    id: str
+    id: int
     code: str
     name: str

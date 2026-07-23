@@ -21,18 +21,18 @@ class LessonRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_topic(self, topic_id: str) -> list[Lesson]:
+    def list_by_topic(self, topic_id: int) -> list[Lesson]:
         """Return lessons materialised from ``topic_id``."""
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, lesson_id: str) -> Lesson | None:
+    def get(self, lesson_id: int) -> Lesson | None:
         """Return the lesson with ``lesson_id`` or ``None``."""
         raise NotImplementedError
 
     @abstractmethod
-    def add(self, lesson: Lesson) -> None:
-        """Insert a new lesson."""
+    def add(self, lesson: Lesson) -> int:
+        """Insert a new lesson, set ``lesson.id`` to the assigned key, and return it."""
         raise NotImplementedError
 
     @abstractmethod
@@ -41,11 +41,11 @@ class LessonRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, lesson_id: str) -> None:
+    def delete(self, lesson_id: int) -> None:
         """Remove the lesson with ``lesson_id`` (no-op if absent)."""
         raise NotImplementedError
 
     @abstractmethod
-    def delete_by_topic(self, topic_id: str) -> None:
+    def delete_by_topic(self, topic_id: int) -> None:
         """Remove every lesson materialised from ``topic_id``."""
         raise NotImplementedError

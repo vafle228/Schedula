@@ -32,21 +32,19 @@ class AcademicYearRepositorySqlLite(AcademicYearRepository):
         ).fetchall()
         return [_row_to_year(r) for r in rows]
 
-    def get(self, year_id: str) -> AcademicYear | None:
+    def get(self, year_id: int) -> AcademicYear | None:
         row = self._conn.execute(
             "SELECT * FROM academic_years WHERE id = ?", (year_id,)
         ).fetchone()
         return _row_to_year(row) if row else None
 
-    def add(self, year: AcademicYear) -> None:
-        self._conn.execute(
+    def add(self, year: AcademicYear) -> int:
+        cursor = self._conn.execute(
             """
-            INSERT INTO academic_years (id, name, aut_from, aut_to, spr_from,
-                                        spr_to, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO academic_years (name, aut_from, aut_to, spr_from, spr_to, status)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
-                year.id,
                 year.name,
                 year.aut_from,
                 year.aut_to,
@@ -56,6 +54,8 @@ class AcademicYearRepositorySqlLite(AcademicYearRepository):
             ),
         )
         self._conn.commit()
+        year.id = cursor.lastrowid
+        return year.id
 
     def update(self, year: AcademicYear) -> None:
         self._conn.execute(
@@ -77,6 +77,6 @@ class AcademicYearRepositorySqlLite(AcademicYearRepository):
         )
         self._conn.commit()
 
-    def delete(self, year_id: str) -> None:
+    def delete(self, year_id: int) -> None:
         self._conn.execute("DELETE FROM academic_years WHERE id = ?", (year_id,))
         self._conn.commit()

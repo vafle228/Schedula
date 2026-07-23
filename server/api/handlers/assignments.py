@@ -20,23 +20,32 @@ class AssignmentHandlers:
 
     def put(self, params: Params, query: Query, body: Body) -> dict[str, Any] | None:
         assert body is not None
-        current = self._service.set(params["id"], body.get("teacherId"))
+        teacher_id = body.get("teacherId")
+        current = self._service.set(
+            int(params["id"]),
+            int(teacher_id) if teacher_id is not None else None,
+        )
         return ser.assignment(current) if current else None
 
     def delete(self, params: Params, query: Query, body: Body) -> None:
-        self._service.clear(params["id"])
+        self._service.clear(int(params["id"]))
         return None
 
     def assign_discipline(
         self, params: Params, query: Query, body: Body
-    ) -> dict[str, list[str]]:
+    ) -> dict[str, list[int]]:
         assert body is not None
-        touched = self._service.assign_discipline(params["id"], body.get("teacherId"))
+        teacher_id = body.get("teacherId")
+        touched = self._service.assign_discipline(
+            int(params["id"]),
+            int(teacher_id) if teacher_id is not None else None,
+        )
         return {"topicIds": touched}
 
     def batch(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
         ops = [
-            (op["topicId"], op.get("teacherId")) for op in body.get("ops") or []
+            (int(op["topicId"]), int(op["teacherId"]) if op.get("teacherId") is not None else None)
+            for op in body.get("ops") or []
         ]
         return ser.assignments_map(self._service.batch(ops))

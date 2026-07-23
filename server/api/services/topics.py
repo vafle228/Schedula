@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from api.services import ids
 from api.services.base import ServiceBase
 from api.services.sync import LessonSyncService
 from core.models.discipline import Topic
@@ -35,7 +34,7 @@ class TopicService(ServiceBase):
         self._sync = sync
 
     def create(
-        self, discipline_id: str, *, kind: str, name: str, hours: int
+        self, discipline_id: int, *, kind: str, name: str, hours: int
     ) -> Topic:
         """Create a topic under an existing discipline.
 
@@ -45,14 +44,11 @@ class TopicService(ServiceBase):
         self._require(
             self._disciplines.get(discipline_id), "Дисциплина не найдена"
         )
-        topic = Topic(
-            id=ids.next_topic_id(self._disciplines), discipline_id=discipline_id,
-            kind=kind, name=name, hours=hours,
-        )
+        topic = Topic(id=0, discipline_id=discipline_id, kind=kind, name=name, hours=hours)
         self._topics.add(topic)
         return topic
 
-    def patch(self, topic_id: str, changes: Mapping[str, Any]) -> Topic:
+    def patch(self, topic_id: int, changes: Mapping[str, Any]) -> Topic:
         """Apply ``changes`` and re-sync lessons when the topic is assigned."""
         topic = self._require(self._topics.get(topic_id), "Тема не найдена")
         self._apply(topic, changes)
@@ -61,7 +57,7 @@ class TopicService(ServiceBase):
             self._sync.sync_topic(topic.id)
         return self._require(self._topics.get(topic.id), "Тема не найдена")
 
-    def delete(self, topic_id: str) -> None:
+    def delete(self, topic_id: int) -> None:
         """Delete a topic together with its assignment and lessons.
 
         Raises:

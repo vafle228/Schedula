@@ -22,7 +22,7 @@ class GroupRepositorySqlLite(GroupRepository):
         rows = self._conn.execute("SELECT * FROM groups ORDER BY rowid").fetchall()
         return [_row_to_group(r) for r in rows]
 
-    def list_by_major(self, major_id: str) -> list[Group]:
+    def list_by_major(self, major_id: int) -> list[Group]:
         rows = self._conn.execute(
             "SELECT * FROM groups WHERE major_id = ? ORDER BY rowid", (major_id,)
         ).fetchall()

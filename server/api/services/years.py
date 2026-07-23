@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from api.errors import ApiError
-from api.services import ids
 from api.services.base import ServiceBase
 from core.models.academic_year import AcademicYear, YearStatus
 from core.repositories.academic_year_repository import AcademicYearRepository
@@ -30,14 +29,14 @@ class YearService(ServiceBase):
     ) -> AcademicYear:
         """Create a draft academic year."""
         year = AcademicYear(
-            id=ids.timestamp_id("y"), name=name,
+            id=0, name=name,
             aut_from=aut_from, aut_to=aut_to, spr_from=spr_from, spr_to=spr_to,
             status=YearStatus.DRAFT,
         )
         self._years.add(year)
         return year
 
-    def activate(self, year_id: str) -> list[AcademicYear]:
+    def activate(self, year_id: int) -> list[AcademicYear]:
         """Make ``year_id`` the sole active year and return the full list.
 
         Raises:
@@ -54,7 +53,7 @@ class YearService(ServiceBase):
                 self._years.update(year)
         return self._years.list_all()
 
-    def delete(self, year_id: str) -> list[AcademicYear]:
+    def delete(self, year_id: int) -> list[AcademicYear]:
         """Delete a draft year and return the remaining list.
 
         Raises:

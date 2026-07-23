@@ -19,7 +19,7 @@ class AcademicYear:
     """One academic year; only a single year may be ``ACTIVE`` at a time.
 
     Attributes:
-        id: Stable identifier, e.g. ``"y2627"``.
+        id: Auto-assigned integer primary key.
         name: Display label, e.g. ``"2026/27"``.
         aut_from: Autumn start date, ``"dd.mm.yyyy"``.
         aut_to: Autumn end date, ``"dd.mm.yyyy"``.
@@ -28,7 +28,7 @@ class AcademicYear:
         status: Lifecycle state.
     """
 
-    id: str
+    id: int
     name: str
     aut_from: str
     aut_to: str

@@ -5,7 +5,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from api.services import ids
 from api.services.base import ServiceBase
 from core.models.teacher import Absence, AbsenceType
 from core.repositories.absence_repository import AbsenceRepository
@@ -21,21 +20,18 @@ class AbsenceService(ServiceBase):
         self._absences = absences
         self._teachers = teachers
 
-    def create(self, teacher_id: str, absence_type: AbsenceType, label: str) -> Absence:
+    def create(self, teacher_id: int, absence_type: AbsenceType, label: str) -> Absence:
         """Create an absence for ``teacher_id``.
 
         Raises:
             ApiError: ``404`` when the teacher does not exist.
         """
         self._require(self._teachers.get(teacher_id), "Преподаватель не найден")
-        absence = Absence(
-            id=ids.next_absence_id(self._teachers),
-            teacher_id=teacher_id, type=absence_type, label=label,
-        )
+        absence = Absence(id=0, teacher_id=teacher_id, type=absence_type, label=label)
         self._absences.add(absence)
         return absence
 
-    def patch(self, absence_id: str, changes: Mapping[str, Any]) -> Absence:
+    def patch(self, absence_id: int, changes: Mapping[str, Any]) -> Absence:
         """Apply ``changes`` to an existing absence."""
         absence = self._require(
             self._absences.get(absence_id), "Период отсутствия не найден"
@@ -44,6 +40,6 @@ class AbsenceService(ServiceBase):
         self._absences.update(absence)
         return absence
 
-    def delete(self, absence_id: str) -> None:
+    def delete(self, absence_id: int) -> None:
         """Delete an absence (no-op if it is already gone)."""
         self._absences.delete(absence_id)

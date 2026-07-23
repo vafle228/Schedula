@@ -53,7 +53,7 @@ def compute_generation(
     todo = [l for l in lessons if l.d is None]
     todo.sort(key=lambda l: 0 if l.kind == "lec" else 1)  # stable: lectures first
 
-    new_ids: list[str] = []
+    new_ids: list[int] = []
     soft_used = 0
     for lesson in todo:
         soft_best: tuple[int, int, int] | None = None
