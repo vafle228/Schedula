@@ -25,7 +25,11 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
         A connection whose rows are :class:`sqlite3.Row` and with foreign-key
         constraints enforced.
     """
-    connection = sqlite3.connect(str(db_path))
+    # The WSGI server dispatches requests on worker threads while a single
+    # connection is shared by the unit of work. CPython builds sqlite3 in
+    # "serialized" mode (``sqlite3.threadsafety == 3``), which serialises
+    # access internally, so we disable the redundant per-thread guard.
+    connection = sqlite3.connect(str(db_path), check_same_thread=False)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     return connection

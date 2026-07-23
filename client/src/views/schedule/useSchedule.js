@@ -28,7 +28,6 @@ export const ui = reactive({
   prob: false,
   ov: false,
   gen: null, // { phase: 'prep'|'run'|'done', mode, jobId, pct, stage, live, summary, readiness }
-  dlg: null, // { id, d, s, r }
   lf: null, // lesson form
   co: null, // { tid } — teacher availability
   rooms: false,
@@ -154,23 +153,6 @@ export const entOptions = computed(() => {
   return entList().map((o) => (probEnt[ui.view][o.v] ? { v: o.v, label: o.label + '  ⚠' } : o))
 })
 
-/* ---------- pool ---------- */
-
-export const entUnplaced = computed(() => enriched.value.filter((l) => l.d == null).filter(entMatch))
-
-export const poolCards = computed(() => {
-  const q = ui.q.trim().toLowerCase()
-  return entUnplaced.value.filter((l) => {
-    if (ui.kindF !== 'all' && l.kind !== ui.kindF) return false
-    if (q) {
-      const t = store.teacherById(l.t)
-      const hay = (l.disc + ' ' + l.g + ' ' + (t ? t.name : '')).toLowerCase()
-      if (hay.indexOf(q) < 0) return false
-    }
-    return true
-  })
-})
-
 /* ---------- placement ---------- */
 
 export function statusFor(L, w, d, s, r) {
@@ -221,18 +203,6 @@ export async function pinLessons(ids) {
 }
 
 /* ---------- dialogs ---------- */
-
-export function openDlg(id) {
-  const L = enriched.value.find((l) => l.id === id)
-  if (!L) return
-  ui.dlg = {
-    id,
-    w: String(L.w != null ? L.w : ui.week),
-    d: String(L.d != null ? L.d : dayIdxs.value[0] || 0),
-    s: String(L.s != null ? L.s : 0),
-    r: L.room,
-  }
-}
 
 /** Unique «дисциплина + преподаватель» combos coming from «Распределение». */
 export const asgOptions = computed(() => {
@@ -322,7 +292,6 @@ export function closeAllModals() {
   } else {
     ui.gen = null
   }
-  ui.dlg = null
   ui.co = null
   ui.ex = null
   ui.rooms = false

@@ -1,0 +1,26 @@
+"""HTTP handlers for export (curriculum/schedule download) resources."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from api.http_types import Body, Params, Query
+from api.services.exports import ExportService
+
+
+class ExportHandlers:
+    """Translate export requests to :class:`ExportService` calls."""
+
+    def __init__(self, service: ExportService) -> None:
+        self._service = service
+
+    def curriculum(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
+        assert body is not None
+        return self._service.curriculum(body.get("period"))
+
+    def schedule(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
+        assert body is not None
+        return self._service.schedule(body.get("view"), body.get("period"))
+
+    def get(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
+        return self._service.get(params["id"])

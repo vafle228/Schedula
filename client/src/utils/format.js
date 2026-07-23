@@ -13,10 +13,6 @@ export function plural(n, one, few, many) {
   return many
 }
 
-export function problemsLabel(n) {
-  return n + ' ' + plural(n, 'проблема', 'проблемы', 'проблем')
-}
-
 export function avatarBg(photo) {
   return photo ? `center/cover no-repeat url("${photo}")` : '#ECEAE4'
 }

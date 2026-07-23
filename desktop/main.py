@@ -45,7 +45,7 @@ if __name__ == "__main__":
     window = webview.create_window(
         "Schedula",
         url="http://127.0.0.1:8000/",
-        width=1400,
+        width=1500,
         height=800,
         maximized=False,
         resizable=False)

@@ -6,7 +6,7 @@
  */
 import { mockRequest, ApiError } from './mock/server.js'
 
-const USE_MOCK = true
+const USE_MOCK = false
 const BASE = '/api/v1'
 
 export { ApiError }
