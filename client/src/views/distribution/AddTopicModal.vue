@@ -21,7 +21,7 @@ async function save() {
     <template #title>
       <div class="ttl">
         <span class="ttl-main">Добавить тему</span>
-        <span class="ttl-sub">{{ disc ? disc.name + ', ' + disc.groupId : '' }}</span>
+        <span class="ttl-sub">{{ disc ? disc.name + ' · ' + disc.course + ' курс' : '' }}</span>
       </div>
     </template>
     <div class="body">

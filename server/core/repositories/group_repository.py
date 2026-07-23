@@ -12,22 +12,27 @@ class GroupRepository(ABC):
 
     @abstractmethod
     def list_all(self) -> list[Group]:
-        """Return every group in insertion order."""
+        """Return every group (all years) — for global usage counts."""
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_major(self, major_id: int) -> list[Group]:
-        """Return groups owned by ``major_id``."""
+    def list_by_year(self, year_id: int) -> list[Group]:
+        """Return the year's groups in insertion order."""
         raise NotImplementedError
 
     @abstractmethod
-    def get(self, group_id: str) -> Group | None:
+    def list_by_year_major(self, year_id: int, major_id: int) -> list[Group]:
+        """Return the year's groups owned by ``major_id``."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def get(self, group_id: int) -> Group | None:
         """Return the group with ``group_id`` or ``None``."""
         raise NotImplementedError
 
     @abstractmethod
-    def add(self, group: Group) -> None:
-        """Insert a new group (``group.id`` is the user-supplied name)."""
+    def add(self, group: Group) -> int:
+        """Insert a new group, assign and return its integer id."""
         raise NotImplementedError
 
     @abstractmethod
@@ -36,6 +41,6 @@ class GroupRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def delete(self, group_id: str) -> None:
+    def delete(self, group_id: int) -> None:
         """Remove the group with ``group_id`` (no-op if absent)."""
         raise NotImplementedError

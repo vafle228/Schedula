@@ -179,7 +179,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   <div class="view">
     <!-- ======= header ======= -->
     <div class="head">
-      <span class="head-title" title="Расписание, учебный год 2026/27">Расписание</span>
+      <span class="head-title" :title="'Расписание, учебный год ' + store.yearName">Расписание</span>
       <span class="sem-plaque" title="Семестр активного учебного года — переключается прямо здесь">
         <span class="plaque-lead mono">СЕМЕСТР</span>
         <button
@@ -192,7 +192,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
       </span>
       <router-link class="year-chip" to="/settings" title="Даты семестров, сетка звонков — в настройках учебного года">
         <span class="plaque-lead mono">УЧ. ГОД</span>
-        <span class="yc-year">2026/27</span>
+        <span class="yc-year">{{ store.yearName }}</span>
         <span class="yc-act mono">настроить ↗</span>
       </router-link>
       <div class="seg">

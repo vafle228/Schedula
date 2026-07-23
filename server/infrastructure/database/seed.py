@@ -13,8 +13,8 @@ from core.models.discipline import Discipline, Topic
 from core.models.group import Group
 from core.models.lesson import Lesson
 from core.models.major import Major
-from core.models.period import Period, Slot
 from core.models.room import Room
+from core.models.settings import default_settings
 from core.models.teacher import Absence, AbsenceType, Teacher, TeacherConstraints
 from core.models.topic_type import TopicType
 from infrastructure.database.unit_of_work import SqliteUnitOfWork
@@ -30,48 +30,22 @@ DEFAULT_TOPIC_TYPES: list[TopicType] = [
     TopicType("course", "Курсовая", "Курс.", "#7A756C", 2),
 ]
 
-# 5 slots: 4×2 ac.h + 1×1 ac.h, each carrying the break (minutes) after it.
-_DEFAULT_SLOTS: list[tuple[str, int, int]] = [
-    ("08:30", 2, 15),
-    ("10:20", 2, 30),
-    ("12:25", 2, 10),
-    ("14:10", 2, 15),
-    ("16:00", 1, 15),
-]
+# Demo holidays for the active year's grid, per season ("week-day", 0-based day).
+_DEMO_HOLIDAYS: dict[str, list[str]] = {
+    "fall": ["3-2", "11-0"],
+    "spring": ["2-4", "10-0"],
+}
 
 
-def _slots() -> list[Slot]:
-    return [Slot(start=s, hours=h, brk=b) for s, h, b in _DEFAULT_SLOTS]
-
-
-def _periods() -> list[Period]:
-    week = [True, True, True, True, True, False, False]
-    return [
-        Period(
-            id="fall",
-            date_from="01.09.2026",
-            date_to="27.12.2026",
-            start_date="2026-09-01",
-            active_days=list(week),
-            acad_min=45,
-            slots=_slots(),
-            slots_per_day=len(_DEFAULT_SLOTS),
-            weeks_count=16,
-            holidays=["3-2", "11-0"],
-        ),
-        Period(
-            id="spring",
-            date_from="09.02.2027",
-            date_to="31.05.2027",
-            start_date="2027-02-08",
-            active_days=list(week),
-            acad_min=45,
-            slots=_slots(),
-            slots_per_day=len(_DEFAULT_SLOTS),
-            weeks_count=16,
-            holidays=["2-4", "10-0"],
-        ),
-    ]
+def _seed_settings(
+    uow: SqliteUnitOfWork, year: AcademicYear, holidays: dict[str, list[str]]
+) -> None:
+    """Create both semester settings for ``year`` from the factory defaults."""
+    starts = {"fall": year.aut_from, "spring": year.spr_from}
+    for period in ("fall", "spring"):
+        settings = default_settings(year.id, period, starts[period])
+        settings.holidays = list(holidays.get(period, []))
+        uow.settings.save(settings)
 
 
 def _constraints(
@@ -206,9 +180,7 @@ def seed(uow: SqliteUnitOfWork) -> None:
     Args:
         uow: A unit of work whose schema has already been initialised.
     """
-    for period in _periods():
-        uow.periods.save(period)
-
+    active_year: AcademicYear | None = None
     for year_data in [
         ("2025/26", "01.09.2025", "28.12.2025", "09.02.2026", "31.05.2026", YearStatus.DONE),
         ("2026/27", "01.09.2026", "27.12.2026", "08.02.2027", "30.05.2027", YearStatus.ACTIVE),
@@ -218,6 +190,14 @@ def seed(uow: SqliteUnitOfWork) -> None:
         year = AcademicYear(id=0, name=name, aut_from=af, aut_to=at,
                             spr_from=sf, spr_to=st, status=status)
         uow.years.add(year)
+        # Only the active year carries the demo grid holidays; others use defaults.
+        is_active = status == YearStatus.ACTIVE
+        _seed_settings(uow, year, _DEMO_HOLIDAYS if is_active else {})
+        if is_active:
+            active_year = year
+
+    assert active_year is not None
+    year_id = active_year.id
 
     for topic_type in DEFAULT_TOPIC_TYPES:
         uow.topic_types.add(topic_type)
@@ -239,31 +219,59 @@ def seed(uow: SqliteUnitOfWork) -> None:
         uow.majors.add(m)
         major_ids[key] = m.id
 
-    for gid, major_key, course in _GROUPS:
-        uow.groups.add(Group(gid, major_ids[major_key], course))
+    group_ids: dict[str, int] = {}
+    for gname, major_key, course in _GROUPS:
+        group = Group(
+            id=0, year_id=year_id, name=gname,
+            major_id=major_ids[major_key], course=course,
+        )
+        uow.groups.add(group)
+        group_ids[gname] = group.id
 
-    disc_by_key: dict[str, Discipline] = {}
+    # A group's (major, course) — the scope a discipline is now shared across.
+    group_meta: dict[str, tuple[int, int]] = {
+        gname: (major_ids[mkey], course) for gname, mkey, course in _GROUPS
+    }
+    # (major_id, course, period, name) -> shared Discipline
+    disc_by_key: dict[tuple[int, int, str, str], Discipline] = {}
+    # (discipline_id, kind) -> Topic shared by every group of that major/course
+    topic_by_key: dict[tuple[int, str], Topic] = {}
 
-    for group, disc, kind, teacher_key, room_id, placed, extra, opts in _SPEC:
-        key = f"{group}|{disc}"
+    def _discipline(major_id: int, course: int, period: str, name: str) -> Discipline:
+        key = (major_id, course, period, name)
         discipline = disc_by_key.get(key)
         if discipline is None:
             discipline = Discipline(
-                id=0, name=disc, group_id=group, period="fall", is_new=False, topics=[],
+                id=0, year_id=year_id, name=name, major_id=major_id,
+                course=course, period=period, is_new=False, topics=[],
             )
             uow.disciplines.add(discipline)
             disc_by_key[key] = discipline
+        return discipline
 
+    def _topic(discipline: Discipline, kind: str, name: str, hours: int) -> Topic:
+        key = (discipline.id, kind)
+        topic = topic_by_key.get(key)
+        if topic is None:
+            topic = Topic(
+                id=0, discipline_id=discipline.id, kind=kind, name=name, hours=hours,
+            )
+            uow.topics.add(topic)
+            topic_by_key[key] = topic
+        return topic
+
+    for group, disc, kind, teacher_key, room_id, placed, extra, opts in _SPEC:
+        major_id, course = group_meta[group]
+        discipline = _discipline(major_id, course, "fall", disc)
         pairs = len(placed) + extra
-        topic = Topic(
-            id=0, discipline_id=discipline.id,
-            kind=kind, name=_topic_name(kind), hours=pairs * 32,
-        )
-        uow.topics.add(topic)
+        topic = _topic(discipline, kind, _topic_name(kind), pairs * 32)
+        group_id = group_ids[group]
 
         teacher_id: int | None = teacher_ids.get(teacher_key) if teacher_key else None
         if teacher_id is not None:
-            uow.assignments.set(Assignment(topic.id, teacher_id, pairs_per_week=pairs))
+            uow.assignments.set(
+                Assignment(group_id, topic.id, teacher_id, pairs_per_week=pairs)
+            )
 
         theme = _THEMES.get(f"{group}|{disc}|{kind}")
         label = theme[0] if theme else ""
@@ -273,8 +281,8 @@ def seed(uow: SqliteUnitOfWork) -> None:
 
         for i, (day, slot) in enumerate(placed):
             uow.lessons.add(Lesson(
-                id=0, topic_id=topic.id, discipline_id=discipline.id,
-                group_id=group, teacher_id=owner, room_id=room_id, kind=kind,
+                id=0, year_id=year_id, topic_id=topic.id, discipline_id=discipline.id,
+                group_id=group_id, teacher_id=owner, room_id=room_id, kind=kind,
                 period="fall", week=1, day=day, slot=slot, sub_by=None,
                 pin=bool(opts.get("pin")), manual=False, ni=i + 1, nt=pairs,
                 topic_label=label, question=question,
@@ -283,21 +291,17 @@ def seed(uow: SqliteUnitOfWork) -> None:
         if teacher_id is not None:
             for i in range(extra):
                 uow.lessons.add(Lesson(
-                    id=0, topic_id=topic.id, discipline_id=discipline.id,
-                    group_id=group, teacher_id=teacher_id, room_id=room_id, kind=kind,
-                    period="fall", week=None, day=None, slot=None, sub_by=None,
+                    id=0, year_id=year_id, topic_id=topic.id, discipline_id=discipline.id,
+                    group_id=group_id, teacher_id=teacher_id, room_id=room_id,
+                    kind=kind, period="fall", week=None, day=None, slot=None, sub_by=None,
                     pin=False, manual=False, ni=len(placed) + i + 1, nt=pairs,
                     topic_label=label, question=question,
                 ))
 
     for group, name, period, topics in _EXTRA_PLAN:
-        discipline = Discipline(
-            id=0, name=name, group_id=group, period=period, is_new=False, topics=[],
-        )
-        uow.disciplines.add(discipline)
+        major_id, course = group_meta[group]
+        discipline = _discipline(major_id, course, period, name)
         for kind, topic_name, hours in topics:
-            uow.topics.add(Topic(
-                id=0, discipline_id=discipline.id, kind=kind, name=topic_name, hours=hours,
-            ))
+            _topic(discipline, kind, topic_name, hours)
 
     uow.commit()

@@ -15,7 +15,12 @@ class DisciplineRepository(ABC):
 
     @abstractmethod
     def list_all(self) -> list[Discipline]:
-        """Return every discipline with topics populated."""
+        """Return every discipline (all years) — for global usage counts."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_by_year(self, year_id: int) -> list[Discipline]:
+        """Return the year's disciplines with topics populated."""
         raise NotImplementedError
 
     @abstractmethod

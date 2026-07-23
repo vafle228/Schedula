@@ -46,6 +46,6 @@ class MajorService(ServiceBase):
         Raises:
             ApiError: ``409`` when groups still reference the major.
         """
-        if self._groups.list_by_major(major_id):
+        if any(g.major_id == major_id for g in self._groups.list_all()):
             raise ApiError(409, "У специальности есть группы")
         self._majors.delete(major_id)

@@ -18,9 +18,9 @@ class LessonService(ServiceBase):
         self._lessons = lessons
         self._topics = topics
 
-    def list_all(self) -> list[Lesson]:
-        """Return every lesson."""
-        return self._lessons.list_all()
+    def list_by_year(self, year_id: int) -> list[Lesson]:
+        """Return the year's lessons."""
+        return self._lessons.list_by_year(year_id)
 
     def create(self, data: Mapping[str, Any]) -> Lesson:
         """Create a lesson from a snake-cased attribute map.
@@ -35,6 +35,7 @@ class LessonService(ServiceBase):
         )
         lesson = Lesson(
             id=0,
+            year_id=data.get("year_id"),
             topic_id=topic_id, discipline_id=discipline_id,
             group_id=data.get("group_id"), teacher_id=data.get("teacher_id"),
             room_id=data.get("room_id"), kind=data.get("kind"),

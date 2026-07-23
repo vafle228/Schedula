@@ -1,14 +1,113 @@
 <script setup>
 import { reactive, ref, computed, watch } from 'vue'
 import { store } from '../../store/index.js'
+import { api } from '../../api/index.js'
 import { ALL_DAYS } from '../../utils/kinds.js'
 import { toMin, toStr, slotEnd, slotLen } from '../../utils/slots.js'
 import { confirmDelete } from '../../composables/useConfirm.js'
 import ModalWindow from '../../components/ModalWindow.vue'
 
 const activeId = computed(() => store.state.period)
-const activeYear = computed(() => store.state.years.find((y) => y.status === 'active'))
-const activeName = computed(() => (activeYear.value ? activeYear.value.name : '2026/27'))
+// the year the whole app (and these settings) is currently scoped to
+const workingYear = computed(() => store.state.years.find((y) => y.id === store.state.yearId))
+const workingName = computed(() => (workingYear.value ? workingYear.value.name : '—'))
+
+/* ---------- roll-over: copy a curated set of disciplines ---------- */
+
+const roll = reactive({ open: false, target: null, source: '', busy: false, error: '', discs: [], checked: {}, targetDiscs: [] })
+const targetYear = computed(() => store.state.years.find((y) => y.id === roll.target))
+const targetName = computed(() => (targetYear.value ? targetYear.value.name : '—'))
+const sourceYearOpts = computed(() => store.state.years
+  .filter((y) => y.id !== roll.target)
+  .map((y) => ({ v: y.id, label: y.name })))
+
+const majorCode = (id) => {
+  const m = store.state.majors.find((x) => x.id === id)
+  return m ? m.code : ''
+}
+const rollMeta = (d) =>
+  `${d.course} курс · ${d.period === 'fall' ? 'осень' : 'весна'}${majorCode(d.majorId) ? ' · ' + majorCode(d.majorId) : ''}`
+
+/* A discipline's identity within a year: same major, course, season and name. */
+const discKey = (d) => `${d.majorId}|${d.course}|${d.period}|${String(d.name || '').trim().toLowerCase()}`
+/* Disciplines already present in the target draft year. */
+const targetDiscKeys = computed(() => new Set(roll.targetDiscs.map(discKey)))
+
+/* Source disciplines annotated with a diff status against the target year. */
+const rollRows = computed(() => roll.discs
+  .map((d) => ({ ...d, exists: targetDiscKeys.value.has(discKey(d)) }))
+  .sort((a, b) => Number(a.exists) - Number(b.exists)))
+const rollChosen = computed(() => roll.discs.filter((d) => roll.checked[d.id]).length)
+const rollNewCount = computed(() => rollRows.value.filter((d) => !d.exists).length)
+const rollDupCount = computed(() => rollRows.value.filter((d) => d.exists).length)
+
+/*
+ * Load the source year's disciplines as a checklist. Diff-aware default:
+ * tick only what is missing from the working year, leave duplicates unticked.
+ */
+watch(() => roll.source, async (src) => {
+  roll.discs = []
+  roll.checked = {}
+  roll.error = ''
+  if (!src) return
+  const discs = await api.getDisciplines(Number(src))
+  const curKeys = targetDiscKeys.value
+  const checked = {}
+  discs.forEach((d) => { checked[d.id] = !curKeys.has(discKey(d)) })
+  roll.discs = discs
+  roll.checked = checked
+})
+
+async function openRollover(y) {
+  if (roll.open && roll.target === y.id) { closeRollover(); return }
+  roll.open = true
+  roll.target = y.id
+  roll.source = ''
+  roll.discs = []
+  roll.checked = {}
+  roll.error = ''
+  // the in-scope year is already in the store; any other draft is fetched on demand
+  roll.targetDiscs = y.id === store.state.yearId
+    ? store.state.disciplines
+    : await api.getDisciplines(y.id)
+}
+function closeRollover() {
+  if (roll.busy) return
+  roll.open = false
+  roll.target = null
+}
+
+function toggleRoll(id) { roll.checked = { ...roll.checked, [id]: !roll.checked[id] } }
+function setAllRoll(on) {
+  const c = {}
+  roll.discs.forEach((d) => { c[d.id] = on })
+  roll.checked = c
+}
+/** Tick only the disciplines missing from the working year (the merge default). */
+function selectNewRoll() {
+  const c = {}
+  rollRows.value.forEach((d) => { c[d.id] = !d.exists })
+  roll.checked = c
+}
+
+async function doRollover() {
+  if (!roll.source || !rollChosen.value) return
+  roll.busy = true
+  roll.error = ''
+  try {
+    const ids = roll.discs.filter((d) => roll.checked[d.id]).map((d) => d.id)
+    await store.rolloverYear(roll.target, Number(roll.source), ids)
+    roll.open = false
+    roll.target = null
+    roll.source = ''
+    roll.discs = []
+    roll.checked = {}
+  } catch (e) {
+    roll.error = (e && e.message) || 'Не удалось перенести дисциплины'
+  } finally {
+    roll.busy = false
+  }
+}
 
 const form = reactive({ dirty: false, saved: false, acadMin: 45, days: [], slots: [] })
 
@@ -22,7 +121,8 @@ function loadForm() {
   form.slots = (p.slots || []).map((s) => ({ brk: 15, ...s }))
 }
 loadForm()
-watch(activeId, loadForm)
+// reload when the season changes or the working year's settings are reloaded
+watch([activeId, () => store.state.periods], loadForm)
 
 function mark() { form.dirty = true; form.saved = false }
 
@@ -42,7 +142,9 @@ const yearRows = computed(() => store.state.years.map((y) => {
     status: st === 'active' ? 'активный' : st === 'done' ? 'завершён' : 'черновик',
     statusCls: st,
     active: st === 'active',
-    actTip: st === 'done' ? 'Завершённый год откроется для чтения и правок' : 'Все разделы переключатся на этот учебный год',
+    actTip: st === 'done'
+      ? 'Снова сделать активным и открыть во всех разделах (текущий активный станет черновиком)'
+      : 'Сделать активным и открыть во всех разделах (текущий активный станет черновиком)',
     delTip: st === 'active' ? 'Активный год удалить нельзя — сначала сделайте активным другой' : 'Удалить учебный год',
   }
 }))
@@ -60,6 +162,7 @@ async function createYear() {
     name: n.name.trim(),
     autFrom: n.autFrom.trim(), autTo: n.autTo.trim(),
     sprFrom: n.sprFrom.trim(), sprTo: n.sprTo.trim(),
+    copyFromYearId: n.copy ? store.state.yearId : undefined,
   })
   newYear.value = null
 }
@@ -171,7 +274,7 @@ async function save() {
     <!-- ======= header ======= -->
     <div class="head">
       <span class="head-title">Настройки</span>
-      <span class="year-chip mono" title="Настройки ниже относятся к активному учебному году">активный уч. год: {{ activeName }}</span>
+      <span class="year-chip mono" title="Настройки ниже относятся к выбранному учебному году">уч. год: {{ workingName }}</span>
       <div class="sp"></div>
       <span v-if="form.dirty" class="dirty-note">есть несохранённые изменения</span>
       <button
@@ -198,29 +301,87 @@ async function save() {
           </div>
           <div class="yr-table">
             <div class="yr-thead mono">
-              <span>УЧ. ГОД</span><span>ОСЕНЬ</span><span>ВЕСНА</span><span>СТАТУС</span><span></span><span></span>
+              <span>УЧ. ГОД</span><span>ОСЕНЬ</span><span>ВЕСНА</span><span>СТАТУС</span><span class="yr-acts-h">ДЕЙСТВИЯ</span>
             </div>
-            <div v-for="y in yearRows" :key="y.id" class="yr-row" :style="{ background: y.bg }">
-              <span class="yr-name" :style="{ fontWeight: y.weight }">{{ y.name }}</span>
-              <span class="yr-range mono">{{ y.aut }}</span>
-              <span class="yr-range mono">{{ y.spr }}</span>
-              <span class="yr-status mono" :class="y.statusCls">{{ y.status }}</span>
-              <span
-                v-if="!y.active"
-                class="yr-act"
-                :title="y.actTip"
-                @click="store.activateYear(y.id)"
-              >сделать активным</span>
-              <span v-else></span>
-              <button
-                class="yr-del"
-                :class="{ off: y.active }"
-                :title="y.delTip"
-                @click="removeYear(y)"
-              >✕</button>
+            <template v-for="y in yearRows" :key="y.id">
+              <div class="yr-row" :style="{ background: y.bg }">
+                <span class="yr-name">
+                  <span class="yr-name-txt" :style="{ fontWeight: y.weight }">{{ y.name }}</span>
+                </span>
+                <span class="yr-range mono">{{ y.aut }}</span>
+                <span class="yr-range mono">{{ y.spr }}</span>
+                <span class="yr-status mono" :class="y.statusCls">{{ y.status }}</span>
+                <div class="yr-acts">
+                  <button v-if="!y.active" class="yr-icon" :title="y.actTip" @click="store.activateYear(y.id)">→</button>
+                  <button
+                    v-if="y.statusCls === 'draft'"
+                    class="yr-icon ro"
+                    :class="{ on: roll.open && roll.target === y.id }"
+                    title="Перенести дисциплины и темы из другого года в этот черновик"
+                    @click="openRollover(y)"
+                  >⇄</button>
+                  <button class="yr-del" :class="{ off: y.active }" :title="y.delTip" @click="removeYear(y)">✕</button>
+                </div>
+              </div>
+            </template>
+
+            <!-- plan transfer (rollover) into the chosen draft year — pinned below the list -->
+            <div v-if="roll.open" class="ro-form">
+              <div class="ro-form-top">
+                <div class="sect-head">
+                  <span class="sect-title">Перенос плана в черновик «{{ targetName }}»</span>
+                  <span class="sect-sub">Скопирует выбранные дисциплины и их темы. Группы, преподаватели и назначения создаются заново — расписание останется пустым.</span>
+                </div>
+                <button class="ro-x" title="Свернуть" @click="closeRollover">✕</button>
+              </div>
+
+              <div class="ro-controls">
+                <div class="select-wrap">
+                  <select v-model="roll.source" class="input ro-src">
+                    <option value="" disabled>год-источник…</option>
+                    <option v-for="o in sourceYearOpts" :key="o.v" :value="o.v">{{ o.label }}</option>
+                  </select>
+                </div>
+                <span v-if="roll.source && roll.discs.length" class="ro-diffsum">
+                  <span class="ro-tag new">＋{{ rollNewCount }} новых</span>
+                  <span v-if="rollDupCount" class="ro-tag dup">{{ rollDupCount }} уже есть</span>
+                </span>
+                <span class="sp"></span>
+                <button class="btn-primary ro-go" :disabled="!roll.source || !rollChosen || roll.busy" @click="doRollover">
+                  {{ roll.busy ? 'Переносим…' : 'Перенести выбранные (' + rollChosen + ')' }}
+                </button>
+              </div>
+
+              <template v-if="roll.source && roll.discs.length">
+                <div class="ro-checkhead">
+                  <span class="ro-count mono">Выбрано {{ rollChosen }} из {{ roll.discs.length }}</span>
+                  <span class="sp"></span>
+                  <button class="link-btn" @click="selectNewRoll">Только новые</button>
+                  <button class="link-btn" @click="setAllRoll(true)">Все</button>
+                  <button class="link-btn" @click="setAllRoll(false)">Снять</button>
+                </div>
+                <div class="ro-list">
+                  <label
+                    v-for="d in rollRows"
+                    :key="d.id"
+                    class="ro-item"
+                    :class="{ dup: d.exists }"
+                    @click.prevent="toggleRoll(d.id)"
+                  >
+                    <span class="ns-box" :class="{ on: roll.checked[d.id] }">{{ roll.checked[d.id] ? '✓' : '' }}</span>
+                    <span class="ro-name">{{ d.name }}</span>
+                    <span class="ro-meta mono">{{ rollMeta(d) }}</span>
+                    <span class="ro-tcount mono">{{ d.topics.length }} тем</span>
+                    <span class="ro-status" :class="d.exists ? 'dup' : 'new'">{{ d.exists ? 'уже есть' : 'новая' }}</span>
+                  </label>
+                </div>
+                <div class="footnote">«Уже есть» — дисциплина с тем же названием, курсом и семестром уже заведена в «{{ targetName }}»; по умолчанию такие не переносятся, чтобы не задваивать план. Отметьте вручную, если перенос всё же нужен.</div>
+              </template>
+              <div v-else-if="roll.source" class="footnote">В выбранном году нет дисциплин для переноса.</div>
+              <div v-if="roll.error" class="ro-error">{{ roll.error }}</div>
             </div>
           </div>
-          <div class="footnote">Новый год создаётся черновиком: настройте сетку, сделайте назначения в «Распределении» — и переключите его в активные. Завершённые годы доступны для чтения и экспорта. Активный год удалить нельзя.</div>
+          <div class="footnote">Действия справа: «→» делает год активным и открывает его во всех разделах (прежний активный становится черновиком); «⇄» переносит план из другого года в черновик. Новый год создаётся черновиком: перенесите в него план, а когда будете готовы работать с ним — сделайте активным. Активный год удалить нельзя.</div>
         </div>
 
         <!-- ===== academic hour ===== -->
@@ -433,22 +594,81 @@ async function save() {
 .yr-table { display: flex; flex-direction: column; }
 .yr-thead, .yr-row {
   display: grid;
-  grid-template-columns: 86px 1fr 1fr 92px 118px 26px;
+  grid-template-columns: 140px 1fr 1fr 84px minmax(220px, auto);
   gap: 8px;
   align-items: center;
 }
 .yr-thead { padding: 4px 0; font: 500 10px var(--mono); letter-spacing: 0.06em; color: var(--faint); }
+.yr-acts-h { justify-self: end; }
 .yr-row { padding: 8px 0; border-top: 1px solid rgba(0, 0, 0, 0.06); }
-.yr-name { font-size: 12.5px; }
 .yr-range { font: 400 10.5px var(--mono); color: var(--muted); }
 .yr-status { justify-self: start; font: 500 9.5px var(--mono); border-radius: 4px; padding: 2px 7px; }
 .yr-status.active { color: var(--green); background: rgba(31, 138, 91, 0.10); }
 .yr-status.done { color: var(--muted); background: var(--chip); }
 .yr-status.draft { color: var(--amber); background: rgba(176, 124, 31, 0.10); }
-.yr-act { justify-self: end; font-size: 11.5px; color: var(--blue); cursor: pointer; }
-.yr-act:hover { text-decoration: underline; }
-.yr-del { justify-self: end; border: none; background: transparent; color: var(--red); font-size: 13px; cursor: pointer; padding: 2px 4px; }
+.yr-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
+.yr-name-txt { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* row actions */
+.yr-acts { justify-self: end; display: inline-flex; align-items: center; gap: 12px; }
+.yr-icon {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  color: var(--blue);
+  font-size: 13px;
+  line-height: 1;
+  border-radius: var(--r-md);
+  cursor: pointer;
+}
+.yr-icon:hover { background: #FBFAF8; }
+.yr-icon.ro.on { color: #FFFFFF; background: var(--blue); border-color: var(--blue); }
+.yr-del { border: none; background: transparent; color: var(--red); font-size: 13px; cursor: pointer; padding: 2px 4px; }
 .yr-del.off { color: var(--dim); cursor: default; }
+
+/* in-place plan transfer (rollover) */
+.ro-form {
+  margin: 10px 0 8px;
+  padding: 13px 14px;
+  border: 1px solid rgba(59, 98, 196, 0.22);
+  border-radius: var(--r-lg);
+  background: rgba(59, 98, 196, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+.ro-form-top { display: flex; align-items: flex-start; gap: 10px; }
+.ro-form-top .sect-head { flex: 1; }
+.ro-x { flex: none; border: none; background: transparent; color: var(--muted); font-size: 13px; cursor: pointer; padding: 2px 6px; border-radius: var(--r-sm); }
+.ro-x:hover { background: var(--hover); color: var(--fg); }
+.ro-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ro-src { font: 400 12px var(--sans); padding: 6px 9px; min-width: 200px; }
+.ro-diffsum { display: inline-flex; align-items: center; gap: 6px; }
+.ro-tag { font: 500 10px var(--mono); border-radius: 4px; padding: 2px 7px; }
+.ro-tag.new { color: var(--green); background: rgba(31, 138, 91, 0.12); }
+.ro-tag.dup { color: var(--muted); background: var(--chip); }
+.ro-go { flex: none; }
+.ghost-btn:disabled { opacity: 0.5; cursor: default; }
+.ro-checkhead { display: flex; align-items: center; gap: 10px; }
+.ro-count { font: 500 11px var(--mono); color: var(--sub); }
+.link-btn { border: none; background: transparent; color: var(--blue); font: 500 11.5px var(--sans); cursor: pointer; padding: 2px 3px; }
+.link-btn:hover { text-decoration: underline; }
+.ro-list { max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; border: 1px solid rgba(0, 0, 0, 0.09); border-radius: var(--r-md); padding: 5px; background: var(--panel); }
+.ro-item { display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: var(--r-sm); cursor: pointer; }
+.ro-item:hover { background: var(--hover); }
+.ro-item.dup { opacity: 0.7; }
+.ro-name { font-size: 12.5px; color: #1F1E1B; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ro-meta { font: 400 11px var(--mono); color: var(--faint); flex: none; }
+.ro-tcount { font: 400 11px var(--mono); color: var(--muted); flex: none; width: 54px; text-align: right; }
+.ro-status { flex: none; font: 500 9px var(--mono); letter-spacing: 0.04em; text-transform: uppercase; border-radius: 4px; padding: 2px 6px; width: 62px; text-align: center; }
+.ro-status.new { color: var(--green); background: rgba(31, 138, 91, 0.12); }
+.ro-status.dup { color: var(--muted); background: var(--chip); }
+.ro-error { font-size: 12px; color: var(--red); }
 
 .fld { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ns-copy { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: #3A382F; }

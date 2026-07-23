@@ -11,7 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from core.models.period import Period
+from core.models.settings import SemesterSettings
 from core.models.teacher import Teacher
 
 
@@ -38,14 +38,14 @@ def eff_teacher(lesson: EnrichedLesson) -> str | None:
     return lesson.sub_by or lesson.t
 
 
-def slot_fits(kind: str, s: int, cfg: Period, kind_hours: Callable[[str], int]) -> bool:
+def slot_fits(kind: str, s: int, cfg: SemesterSettings, kind_hours: Callable[[str], int]) -> bool:
     """True when a lesson of ``kind`` fits slot ``s`` of the given config."""
     if not cfg or not cfg.slots or s >= len(cfg.slots):
         return True
     return kind_hours(kind) <= cfg.slots[s].hours
 
 
-def is_holiday(cfg: Period, w: int | None, d: int | None) -> bool:
+def is_holiday(cfg: SemesterSettings, w: int | None, d: int | None) -> bool:
     """True when the ``(week, day)`` cell is a holiday in ``cfg``."""
     return bool(cfg and cfg.holidays and f"{w}-{d}" in cfg.holidays)
 
@@ -53,7 +53,7 @@ def is_holiday(cfg: Period, w: int | None, d: int | None) -> bool:
 def analyze(
     lessons: list[EnrichedLesson],
     teachers: list[Teacher],
-    cfg: Period | None,
+    cfg: SemesterSettings | None,
     kind_hours: Callable[[str], int],
 ) -> dict[str, Any]:
     """Full conflict pass over placed lessons.
@@ -147,7 +147,7 @@ def slot_status(
     room: str | None,
     lessons: list[EnrichedLesson],
     teachers: list[Teacher],
-    cfg: Period,
+    cfg: SemesterSettings,
     kind_hours: Callable[[str], int],
 ) -> dict[str, str]:
     """Status of dropping ``lesson`` into ``(w, d, s)`` with room ``room``.

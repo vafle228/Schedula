@@ -7,7 +7,7 @@
 import { reactive, computed } from 'vue'
 import { api } from '../api/index.js'
 import { analyze } from '../utils/conflicts.js'
-import { applyTopicTypes } from '../utils/kinds.js'
+import { applyTopicTypes, kindHours } from '../utils/kinds.js'
 
 /** Weekly-hour cap per teacher and period used by the load indicators. */
 export const NORM_HOURS = 240
@@ -17,6 +17,8 @@ const state = reactive({
   period: 'fall',
   periods: { fall: null, spring: null },
   years: [],
+  // the academic year the whole app is currently scoped to (defaults to active)
+  yearId: null,
   topicTypes: [],
   majors: [],
   groups: [],
@@ -39,6 +41,8 @@ const state = reactive({
 const teacherById = (id) => state.teachers.find((t) => t.id === id)
 const roomById = (id) => state.rooms.find((r) => r.id === id)
 const groupById = (id) => state.groups.find((g) => g.id === id)
+/** Display name of a group by its (integer) id — '' when unknown. */
+const groupName = (id) => { const g = groupById(id); return g ? g.name : '' }
 const disciplineById = (id) => state.disciplines.find((d) => d.id === id)
 const lessonById = (id) => state.lessons.find((l) => l.id === id)
 
@@ -55,12 +59,17 @@ function topicById(id) {
 /** Lessons of the current period enriched for the grid / conflict engine. */
 const enriched = computed(() => {
   const discName = {}
-  state.disciplines.forEach((d) => { discName[d.id] = d.name })
+  const topicName = {}
+  state.disciplines.forEach((d) => {
+    discName[d.id] = d.name
+    d.topics.forEach((tp) => { topicName[tp.id] = tp.name })
+  })
   return state.lessons
     .filter((l) => l.period === state.period)
     .map((l) => ({
       id: l.id,
-      g: l.groupId,
+      g: groupName(l.groupId),
+      groupId: l.groupId,
       disc: discName[l.disciplineId] || '',
       disciplineId: l.disciplineId,
       topicId: l.topicId,
@@ -75,9 +84,11 @@ const enriched = computed(() => {
       manual: l.manual,
       ni: l.ni,
       nt: l.nt,
-      topic: l.topicLabel,
+      // Auto lessons start with a blank label — fall back to the plan topic's
+      // name so the schedule reads sensibly without hand-editing every card.
+      topic: l.topicLabel || topicName[l.topicId] || '',
       question: l.question,
-      orphan: !state.assignments[l.topicId],
+      orphan: !(state.assignments[l.groupId] && state.assignments[l.groupId][l.topicId]),
     }))
 })
 
@@ -86,24 +97,64 @@ const scheduleAnalysis = computed(() => {
   return analyze(enriched.value, state.teachers, cfg)
 })
 
-/** Assigned topics of the given period — schedule works only with these. */
+/** Display name of the academic year the app is currently scoped to. */
+const yearName = computed(() => {
+  const y = state.years.find((x) => x.id === state.yearId)
+  return y ? y.name : '—'
+})
+
+/**
+ * Assigned (group, topic) pairs of the given period — schedule works only with
+ * these. A discipline's plan is shared by every group of its major and course,
+ * but the teacher is chosen per group, so each pair is listed on its own.
+ */
 function assignedTopics(period) {
   const out = []
-  state.disciplines.forEach((d) => {
-    if (d.period !== period) return
-    d.topics.forEach((tp) => {
-      const a = state.assignments[tp.id]
-      if (a) out.push({ topic: tp, discipline: d, teacherId: a.teacherId })
+  state.groups.forEach((g) => {
+    const gasg = state.assignments[g.id]
+    if (!gasg) return
+    state.disciplines.forEach((d) => {
+      if (d.period !== period || d.majorId !== g.majorId || d.course !== g.course) return
+      d.topics.forEach((tp) => {
+        const a = gasg[tp.id]
+        if (a) out.push({ topic: tp, discipline: d, group: g, teacherId: a.teacherId })
+      })
     })
   })
   return out
+}
+
+/* ---------- plan accounting (lesson cap) ---------- */
+
+/**
+ * Planned lesson count for a topic — its total hours divided by the length of
+ * one lesson of that type. A topic of 4 ч with 2-ак.ч lessons plans 2 lessons.
+ */
+function topicPlanCount(topicId) {
+  const found = topicById(topicId)
+  if (!found) return 0
+  const per = kindHours(found.topic.kind) || 2
+  return Math.max(1, Math.ceil(found.topic.hours / per))
+}
+
+/** Lessons already authored for a (group, topic) pair in the current period. */
+function authoredCount(groupId, topicId) {
+  return state.lessons.filter(
+    (l) => l.groupId === groupId && l.topicId === topicId && l.period === state.period,
+  ).length
+}
+
+/** How many more lessons the plan still allows for the (group, topic) pair. */
+function planRemaining(groupId, topicId) {
+  if (topicId == null || groupId == null) return Infinity
+  return Math.max(0, topicPlanCount(topicId) - authoredCount(groupId, topicId))
 }
 
 /* ---------- data refresh helpers ---------- */
 
 async function refreshPlan() {
   const [disciplines, assignments, lessons] = await Promise.all([
-    api.getDisciplines(), api.getAssignments(), api.getLessons(),
+    api.getDisciplines(state.yearId), api.getAssignments(state.yearId), api.getLessons(state.yearId),
   ])
   state.disciplines = disciplines
   state.assignments = assignments
@@ -111,6 +162,25 @@ async function refreshPlan() {
   // lesson set changed structurally — schedule snapshots are no longer valid
   state.schedUndo = []
   state.schedRedo = []
+}
+
+/** Load every year-scoped slice (settings + plan + lessons) for state.yearId. */
+async function loadYearData() {
+  const [settings, groups, disciplines, assignments, lessons] = await Promise.all([
+    api.getSettings(state.yearId), api.getGroups(state.yearId), api.getDisciplines(state.yearId),
+    api.getAssignments(state.yearId), api.getLessons(state.yearId),
+  ])
+  state.periods = { fall: null, spring: null }
+  settings.forEach((s) => { state.periods[s.id] = s })
+  state.groups = groups
+  state.disciplines = disciplines
+  state.assignments = assignments
+  state.lessons = lessons
+  state.planUndo = []
+  state.planRedo = []
+  state.schedUndo = []
+  state.schedRedo = []
+  state.newIds = []
 }
 
 function upsertLesson(l) {
@@ -153,32 +223,43 @@ export const store = {
   state,
   enriched,
   scheduleAnalysis,
+  yearName,
   teacherById,
   roomById,
   groupById,
+  groupName,
   disciplineById,
   lessonById,
   topicById,
   assignedTopics,
+  topicPlanCount,
+  authoredCount,
+  planRemaining,
 
   async init() {
     if (state.loaded) return
-    const [periods, years, topicTypes, majors, groups, teachers, rooms, disciplines, assignments, lessons] = await Promise.all([
-      api.getPeriods(), api.getYears(), api.getTopicTypes(), api.getMajors(), api.getGroups(),
-      api.getTeachers(), api.getRooms(), api.getDisciplines(), api.getAssignments(), api.getLessons(),
+    // master data (global) first — then pick the active year and load its slice
+    const [years, topicTypes, majors, teachers, rooms] = await Promise.all([
+      api.getYears(), api.getTopicTypes(), api.getMajors(), api.getTeachers(), api.getRooms(),
     ])
-    periods.forEach((p) => { state.periods[p.id] = p })
     state.years = years
     state.topicTypes = topicTypes
     applyTopicTypes(topicTypes)
     state.majors = majors
-    state.groups = groups
     state.teachers = teachers
     state.rooms = rooms
-    state.disciplines = disciplines
-    state.assignments = assignments
-    state.lessons = lessons
+    const active = years.find((y) => y.status === 'active') || years[0]
+    state.yearId = active ? active.id : null
+    if (state.yearId != null) await loadYearData()
     state.loaded = true
+  },
+
+  /** Switch the working academic year and re-scope the whole app to it. */
+  async setWorkingYear(id) {
+    if (id == null || state.yearId === id) return
+    state.yearId = id
+    state.period = 'fall'
+    await loadYearData()
   },
 
   setPeriod(p) {
@@ -196,6 +277,8 @@ export const store = {
     const y = state.years.find((x) => x.id === id)
     if (!y || y.status === 'active') return
     state.years = await api.activateYear(id)
+    // activating a year makes it the working scope
+    await store.setWorkingYear(id)
   },
   async createYear(body) {
     const y = await api.createYear(body)
@@ -204,6 +287,18 @@ export const store = {
   },
   async deleteYear(id) {
     state.years = await api.deleteYear(id)
+    // if the working year was removed, fall back to the active one
+    if (!state.years.some((y) => y.id === state.yearId)) {
+      const active = state.years.find((y) => y.status === 'active') || state.years[0]
+      state.yearId = active ? active.id : null
+      if (state.yearId != null) await loadYearData()
+    }
+  },
+  /** Copy the chosen source-year disciplines into the given (draft) year. */
+  async rolloverYear(targetYearId, sourceYearId, disciplineIds) {
+    await api.rolloverYear(targetYearId, { sourceYearId, disciplineIds })
+    // only the in-scope year is held in memory — refresh it if it was the target
+    if (targetYearId === state.yearId) await loadYearData()
   },
 
   /* ===== Настройки: типы занятий ===== */
@@ -230,14 +325,18 @@ export const store = {
 
   async commitAssign(entries) {
     const eff = entries
-      .map((e) => ({
-        topicId: e.topicId,
-        prev: state.assignments[e.topicId] ? state.assignments[e.topicId].teacherId : null,
-        to: e.to,
-      }))
+      .map((e) => {
+        const g = state.assignments[e.groupId]
+        return {
+          groupId: e.groupId,
+          topicId: e.topicId,
+          prev: g && g[e.topicId] ? g[e.topicId].teacherId : null,
+          to: e.to,
+        }
+      })
       .filter((e) => e.prev !== e.to)
     if (!eff.length) return
-    await api.batchAssign(eff.map((e) => ({ topicId: e.topicId, teacherId: e.to })))
+    await api.batchAssign(state.yearId, eff.map((e) => ({ groupId: e.groupId, topicId: e.topicId, teacherId: e.to })))
     state.planUndo = [...state.planUndo, eff]
     state.planRedo = []
     await refreshPlan()
@@ -246,7 +345,7 @@ export const store = {
   async planUndoAct() {
     const e = state.planUndo[state.planUndo.length - 1]
     if (!e) return
-    await api.batchAssign(e.map((x) => ({ topicId: x.topicId, teacherId: x.prev })))
+    await api.batchAssign(state.yearId, e.map((x) => ({ groupId: x.groupId, topicId: x.topicId, teacherId: x.prev })))
     state.planUndo = state.planUndo.slice(0, -1)
     state.planRedo = [...state.planRedo, e]
     await refreshPlan()
@@ -255,7 +354,7 @@ export const store = {
   async planRedoAct() {
     const e = state.planRedo[state.planRedo.length - 1]
     if (!e) return
-    await api.batchAssign(e.map((x) => ({ topicId: x.topicId, teacherId: x.to })))
+    await api.batchAssign(state.yearId, e.map((x) => ({ groupId: x.groupId, topicId: x.topicId, teacherId: x.to })))
     state.planRedo = state.planRedo.slice(0, -1)
     state.planUndo = [...state.planUndo, e]
     await refreshPlan()
@@ -264,7 +363,7 @@ export const store = {
   /* ===== Распределение: дисциплины и темы ===== */
 
   async createDiscipline(payload) {
-    const d = await api.createDiscipline(payload)
+    const d = await api.createDiscipline({ ...payload, yearId: state.yearId })
     await refreshPlan()
     return d
   },
@@ -324,8 +423,12 @@ export const store = {
   },
 
   async createManualLesson(payload) {
+    // Guard the plan cap even if a caller skips the UI pre-check.
+    if (planRemaining(payload.groupId, payload.topicId) <= 0) {
+      throw new Error('План по этой теме исчерпан')
+    }
     schedSnapshot()
-    const l = await api.createLesson({ ...payload, manual: true })
+    const l = await api.createLesson({ ...payload, yearId: state.yearId, manual: true })
     state.lessons.push(l)
     return l
   },
@@ -360,7 +463,7 @@ export const store = {
   async acceptGeneration(jobId) {
     schedSnapshot()
     const { newIds } = await api.acceptGeneration(jobId)
-    state.lessons = await api.getLessons()
+    state.lessons = await api.getLessons(state.yearId)
     state.newIds = newIds
   },
 
@@ -419,7 +522,7 @@ export const store = {
     state.majors = state.majors.filter((x) => x.id !== id)
   },
   async createGroup(majorId, body) {
-    const g = await api.createGroup(majorId, body)
+    const g = await api.createGroup(majorId, { ...body, yearId: state.yearId })
     state.groups.push(g)
     return g
   },
@@ -447,16 +550,16 @@ export const store = {
 
   async savePeriods(fall, spring) {
     const [f, s] = await Promise.all([
-      api.patchPeriod('fall', fall),
-      api.patchPeriod('spring', spring),
+      api.patchSettings(state.yearId, 'fall', fall),
+      api.patchSettings(state.yearId, 'spring', spring),
     ])
     state.periods.fall = f
     state.periods.spring = s
   },
 
-  /** Save the config of one season (Настройки редактируют активный семестр). */
+  /** Save the grid of one season of the working year (Настройки). */
   async savePeriod(id, body) {
-    const p = await api.patchPeriod(id, body)
+    const p = await api.patchSettings(state.yearId, id, body)
     state.periods[id] = p
     return p
   },

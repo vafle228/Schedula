@@ -19,7 +19,7 @@ const darken = (hex, f = 0.72) => {
   return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase()
 }
 
-/** Factory defaults — also seed the mock backend (imported by api/mock/seed.js). */
+/** Factory-default topic types (mirrors the backend seed's DEFAULT_TOPIC_TYPES). */
 export const DEFAULT_TOPIC_TYPES = [
   { k: 'lec', label: 'Лекция', short: 'Лек.', color: '#3B62C4', acHours: 2 },
   { k: 'prac', label: 'Практика', short: 'Практ.', color: '#1F8A5B', acHours: 2 },

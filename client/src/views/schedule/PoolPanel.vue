@@ -33,14 +33,15 @@ function cancelAdd() { adding.value = null }
 async function submitAdd(b) {
   const topic = addForm.topic.trim()
   if (!topic) return
-  const asg = asgOptions.value.find((a) => a.discipline.id === b.disciplineId && a.teacherId === b.teacherId)
+  const asg = asgOptions.value.find((a) => a.discipline.id === b.disciplineId && a.groupId === b.groupId && a.teacherId === b.teacherId)
   if (!asg) return
   const unitTopic = asg.topics.find((tp) => tp.kind === b.addKind) || asg.topics[0]
+  if (store.planRemaining(asg.groupId, unitTopic.id) <= 0) return // план исчерпан
   adding.value = null
   const created = await store.createManualLesson({
     topicId: unitTopic.id,
     disciplineId: asg.discipline.id,
-    groupId: asg.discipline.groupId,
+    groupId: asg.groupId,
     teacherId: asg.teacherId,
     roomId: asg.defaultRoom,
     kind: b.addKind,
@@ -76,11 +77,15 @@ const tree = computed(() => {
         const h = K.acHours
         const authored = b.lessons.length
         const placed = b.lessons.filter((l) => l.d != null).length
-        const nt = b.lessons[0] ? (b.lessons[0].nt || authored) : authored
-        const planN = Math.max(nt, authored)
+        const first = b.lessons[0]
+        // The plan cap comes from the topic's hours (one topic per disc + kind).
+        // A missing topic (orphaned lesson) has no plan — show what's authored.
+        const topicId = first ? first.topicId : null
+        const plan = topicId != null ? store.topicPlanCount(topicId) : 0
+        const planN = plan || Math.max(authored, 1)
+        const full = authored >= planN
         const key = d.name + '|' + b.kind
         const groups = [...new Set(b.lessons.map((l) => l.g))].join(' + ')
-        const first = b.lessons[0]
         return {
           key,
           name: K.label,
@@ -90,7 +95,9 @@ const tree = computed(() => {
           counts: authored + ' / ' + planN + ' зан.',
           open: !collapsed[key],
           disciplineId: first ? first.disciplineId : null,
+          groupId: first ? first.groupId : null,
           teacherId: first ? first.t : null,
+          full,
           ctx: d.name + ' · ' + K.label + ' · ' + (t ? t.name : ''),
           placedH: placed * h + 'ч',
           authoredH: authored * h + 'ч',
@@ -263,7 +270,10 @@ function onPoolDrop(e) {
                   <button class="add-cancel" @click="cancelAdd">Отмена</button>
                 </div>
               </div>
-              <button v-else class="add-lesson" @click="startAdd(b)">+ занятие</button>
+              <button v-else-if="!b.full" class="add-lesson" @click="startAdd(b)">+ занятие</button>
+              <div v-else class="plan-full mono" title="Заведено занятий на все запланированные часы этой темы">
+                план исчерпан · {{ b.planH }}
+              </div>
             </div>
           </template>
         </div>
@@ -342,6 +352,7 @@ function onPoolDrop(e) {
 .lesson-tag.placed-tag { color: #166A45; background: rgba(31, 138, 91, 0.12); }
 .lesson-q { padding-left: 14px; font-size: 10px; color: #5C574E; }
 .add-lesson { text-align: left; background: transparent; border: 1px dashed rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 6px 10px; font-size: 11.5px; color: var(--blue); cursor: pointer; }
+.plan-full { text-align: center; border: 1px dashed rgba(31, 138, 91, 0.4); border-radius: 6px; padding: 6px 10px; font: 500 10px var(--mono); color: #166A45; background: rgba(31, 138, 91, 0.05); }
 
 .add-form {
   border: 1.5px solid rgba(31, 138, 91, 0.45);

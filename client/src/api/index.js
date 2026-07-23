@@ -4,15 +4,16 @@
 import { request } from './client.js'
 
 export const api = {
-  /* periods */
-  getPeriods: () => request('GET', '/periods'),
-  patchPeriod: (id, body) => request('PATCH', `/periods/${id}`, body),
+  /* per-year semester settings (schedule grid) */
+  getSettings: (yearId) => request('GET', `/settings?yearId=${yearId}`),
+  patchSettings: (yearId, period, body) => request('PATCH', `/settings/${period}?yearId=${yearId}`, body),
 
   /* academic years */
   getYears: () => request('GET', '/years'),
   createYear: (body) => request('POST', '/years', body),
   activateYear: (id) => request('POST', `/years/${id}/activate`),
   deleteYear: (id) => request('DELETE', `/years/${id}`),
+  rolloverYear: (id, body) => request('POST', `/years/${id}/rollover`, body),
 
   /* topic types */
   getTopicTypes: () => request('GET', '/topic-types'),
@@ -25,13 +26,13 @@ export const api = {
   createMajor: (body) => request('POST', '/majors', body),
   patchMajor: (id, body) => request('PATCH', `/majors/${id}`, body),
   deleteMajor: (id) => request('DELETE', `/majors/${id}`),
-  getGroups: () => request('GET', '/groups'),
+  getGroups: (yearId) => request('GET', `/groups?yearId=${yearId}`),
   createGroup: (majorId, body) => request('POST', `/majors/${majorId}/groups`, body),
-  patchGroup: (id, body) => request('PATCH', `/groups/${encodeURIComponent(id)}`, body),
-  deleteGroup: (id) => request('DELETE', `/groups/${encodeURIComponent(id)}`),
+  patchGroup: (id, body) => request('PATCH', `/groups/${id}`, body),
+  deleteGroup: (id) => request('DELETE', `/groups/${id}`),
 
   /* disciplines & topics */
-  getDisciplines: () => request('GET', '/disciplines'),
+  getDisciplines: (yearId) => request('GET', `/disciplines?yearId=${yearId}`),
   createDiscipline: (body) => request('POST', '/disciplines', body),
   patchDiscipline: (id, body) => request('PATCH', `/disciplines/${id}`, body),
   deleteDiscipline: (id) => request('DELETE', `/disciplines/${id}`),
@@ -39,12 +40,12 @@ export const api = {
   patchTopic: (id, body) => request('PATCH', `/topics/${id}`, body),
   deleteTopic: (id) => request('DELETE', `/topics/${id}`),
 
-  /* assignments */
-  getAssignments: () => request('GET', '/assignments'),
-  assignTopic: (topicId, teacherId) => request('PUT', `/topics/${topicId}/assignment`, { teacherId }),
-  unassignTopic: (topicId) => request('DELETE', `/topics/${topicId}/assignment`),
-  assignDiscipline: (disciplineId, teacherId) => request('POST', `/disciplines/${disciplineId}/assignment`, { teacherId }),
-  batchAssign: (ops) => request('POST', '/assignments/batch', { ops }),
+  /* assignments (keyed by group + topic) */
+  getAssignments: (yearId) => request('GET', `/assignments?yearId=${yearId}`),
+  assignTopic: (groupId, topicId, teacherId) => request('PUT', `/topics/${topicId}/assignment`, { groupId, teacherId }),
+  unassignTopic: (groupId, topicId) => request('DELETE', `/topics/${topicId}/assignment?groupId=${groupId}`),
+  assignDiscipline: (groupId, disciplineId, teacherId) => request('POST', `/disciplines/${disciplineId}/assignment`, { groupId, teacherId }),
+  batchAssign: (yearId, ops) => request('POST', '/assignments/batch', { yearId, ops }),
 
   /* teachers & absences */
   getTeachers: () => request('GET', '/teachers'),
@@ -65,7 +66,7 @@ export const api = {
   deleteRoom: (id) => request('DELETE', `/rooms/${encodeURIComponent(id)}`),
 
   /* lessons */
-  getLessons: () => request('GET', '/lessons'),
+  getLessons: (yearId) => request('GET', `/lessons?yearId=${yearId}`),
   createLesson: (body) => request('POST', '/lessons', body),
   patchLesson: (id, body) => request('PATCH', `/lessons/${id}`, body),
   deleteLesson: (id) => request('DELETE', `/lessons/${id}`),
@@ -73,18 +74,18 @@ export const api = {
   unpinLesson: (id) => request('DELETE', `/lessons/${id}/pin`),
 
   /* generation */
-  getReadiness: (period) => request('GET', `/schedule/readiness?period=${period}`),
-  startGeneration: (period, mode) => request('POST', '/schedule/generate', { period, mode }),
+  getReadiness: (yearId, period) => request('GET', `/schedule/readiness?yearId=${yearId}&period=${period}`),
+  startGeneration: (yearId, period, mode) => request('POST', '/schedule/generate', { yearId, period, mode }),
   getGenerationStatus: (jobId) => request('GET', `/schedule/generate/${jobId}`),
   cancelGeneration: (jobId) => request('POST', `/schedule/generate/${jobId}/cancel`),
   acceptGeneration: (jobId) => request('POST', `/schedule/generate/${jobId}/accept`),
   rollbackGeneration: (jobId) => request('POST', `/schedule/generate/${jobId}/rollback`),
 
   /* conflicts */
-  getConflicts: (period) => request('GET', `/schedule/conflicts?period=${period}`),
+  getConflicts: (yearId, period) => request('GET', `/schedule/conflicts?yearId=${yearId}&period=${period}`),
 
   /* exports */
-  exportCurriculum: (period) => request('POST', '/exports/curriculum', { period }),
+  exportCurriculum: (yearId, period) => request('POST', '/exports/curriculum', { yearId, period }),
   exportSchedule: (body) => request('POST', '/exports/schedule', body),
   getExport: (id) => request('GET', `/exports/${id}`),
 }

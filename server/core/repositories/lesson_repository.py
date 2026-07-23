@@ -12,17 +12,27 @@ class LessonRepository(ABC):
 
     @abstractmethod
     def list_all(self) -> list[Lesson]:
-        """Return every lesson in insertion order."""
+        """Return every lesson (all years) — for global usage guards."""
         raise NotImplementedError
 
     @abstractmethod
-    def list_by_period(self, period: str) -> list[Lesson]:
-        """Return lessons of the given season key."""
+    def list_by_year(self, year_id: int) -> list[Lesson]:
+        """Return the year's lessons in insertion order."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_by_year_period(self, year_id: int, period: str) -> list[Lesson]:
+        """Return the year's lessons of the given season key."""
         raise NotImplementedError
 
     @abstractmethod
     def list_by_topic(self, topic_id: int) -> list[Lesson]:
-        """Return lessons materialised from ``topic_id``."""
+        """Return lessons materialised from ``topic_id`` (across every group)."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_by_group_topic(self, group_id: int, topic_id: int) -> list[Lesson]:
+        """Return lessons materialised from ``topic_id`` for one group."""
         raise NotImplementedError
 
     @abstractmethod
@@ -48,4 +58,9 @@ class LessonRepository(ABC):
     @abstractmethod
     def delete_by_topic(self, topic_id: int) -> None:
         """Remove every lesson materialised from ``topic_id``."""
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_by_year(self, year_id: int) -> None:
+        """Remove every lesson of ``year_id``."""
         raise NotImplementedError

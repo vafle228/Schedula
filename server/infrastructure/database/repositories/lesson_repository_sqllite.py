@@ -8,14 +8,15 @@ from core.models.lesson import Lesson
 from core.repositories.lesson_repository import LessonRepository
 
 _COLUMNS = (
-    "id, topic_id, discipline_id, group_id, teacher_id, room_id, kind, period, "
-    "week, day, slot, sub_by, pin, manual, ni, nt, topic_label, question"
+    "id, year_id, topic_id, discipline_id, group_id, teacher_id, room_id, kind, "
+    "period, week, day, slot, sub_by, pin, manual, ni, nt, topic_label, question"
 )
 
 
 def _row_to_lesson(row: sqlite3.Row) -> Lesson:
     return Lesson(
         id=row["id"],
+        year_id=row["year_id"],
         topic_id=row["topic_id"],
         discipline_id=row["discipline_id"],
         group_id=row["group_id"],
@@ -38,6 +39,7 @@ def _row_to_lesson(row: sqlite3.Row) -> Lesson:
 
 def _params(lesson: Lesson) -> dict[str, object]:
     return {
+        "year_id": lesson.year_id,
         "topic_id": lesson.topic_id,
         "discipline_id": lesson.discipline_id,
         "group_id": lesson.group_id,
@@ -70,10 +72,18 @@ class LessonRepositorySqlLite(LessonRepository):
         ).fetchall()
         return [_row_to_lesson(r) for r in rows]
 
-    def list_by_period(self, period: str) -> list[Lesson]:
+    def list_by_year(self, year_id: int) -> list[Lesson]:
         rows = self._conn.execute(
-            f"SELECT {_COLUMNS} FROM lessons WHERE period = ? ORDER BY rowid",
-            (period,),
+            f"SELECT {_COLUMNS} FROM lessons WHERE year_id = ? ORDER BY rowid",
+            (year_id,),
+        ).fetchall()
+        return [_row_to_lesson(r) for r in rows]
+
+    def list_by_year_period(self, year_id: int, period: str) -> list[Lesson]:
+        rows = self._conn.execute(
+            f"SELECT {_COLUMNS} FROM lessons WHERE year_id = ? AND period = ? "
+            "ORDER BY rowid",
+            (year_id, period),
         ).fetchall()
         return [_row_to_lesson(r) for r in rows]
 
@@ -81,6 +91,14 @@ class LessonRepositorySqlLite(LessonRepository):
         rows = self._conn.execute(
             f"SELECT {_COLUMNS} FROM lessons WHERE topic_id = ? ORDER BY rowid",
             (topic_id,),
+        ).fetchall()
+        return [_row_to_lesson(r) for r in rows]
+
+    def list_by_group_topic(self, group_id: int, topic_id: int) -> list[Lesson]:
+        rows = self._conn.execute(
+            f"SELECT {_COLUMNS} FROM lessons WHERE group_id = ? AND topic_id = ? "
+            "ORDER BY rowid",
+            (group_id, topic_id),
         ).fetchall()
         return [_row_to_lesson(r) for r in rows]
 
@@ -94,10 +112,10 @@ class LessonRepositorySqlLite(LessonRepository):
         p = _params(lesson)
         cursor = self._conn.execute(
             """
-            INSERT INTO lessons (topic_id, discipline_id, group_id, teacher_id,
+            INSERT INTO lessons (year_id, topic_id, discipline_id, group_id, teacher_id,
                     room_id, kind, period, week, day, slot, sub_by,
                     pin, manual, ni, nt, topic_label, question)
-            VALUES (:topic_id, :discipline_id, :group_id, :teacher_id,
+            VALUES (:year_id, :topic_id, :discipline_id, :group_id, :teacher_id,
                     :room_id, :kind, :period, :week, :day, :slot, :sub_by,
                     :pin, :manual, :ni, :nt, :topic_label, :question)
             """,
@@ -128,4 +146,8 @@ class LessonRepositorySqlLite(LessonRepository):
 
     def delete_by_topic(self, topic_id: int) -> None:
         self._conn.execute("DELETE FROM lessons WHERE topic_id = ?", (topic_id,))
+        self._conn.commit()
+
+    def delete_by_year(self, year_id: int) -> None:
+        self._conn.execute("DELETE FROM lessons WHERE year_id = ?", (year_id,))
         self._conn.commit()

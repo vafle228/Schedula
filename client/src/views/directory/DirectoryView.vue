@@ -32,9 +32,14 @@ const secBtns = computed(() => [
 
 const groupsOf = (mid) => store.state.groups.filter((g) => g.majorId === mid)
 
+/* Disciplines are shared per (major, course); count how many reach each group. */
 const groupUsage = computed(() => {
   const m = {}
-  store.state.disciplines.forEach((d) => { m[d.groupId] = (m[d.groupId] || 0) + 1 })
+  store.state.groups.forEach((g) => {
+    m[g.id] = store.state.disciplines.filter(
+      (d) => d.majorId === g.majorId && d.course === g.course,
+    ).length
+  })
   return m
 })
 
@@ -43,7 +48,7 @@ const mShown = computed(() => {
   return store.state.majors.filter((m) => !q
     || m.name.toLowerCase().includes(q)
     || m.code.toLowerCase().includes(q)
-    || groupsOf(m.id).some((g) => g.id.toLowerCase().includes(q)))
+    || groupsOf(m.id).some((g) => g.name.toLowerCase().includes(q)))
 })
 
 const mList = computed(() => mShown.value.map((m) => {
@@ -62,11 +67,11 @@ const curMGroups = computed(() => (curM.value ? groupsOf(curM.value.id) : []))
 const grpRows = computed(() => curMGroups.value.map((g) => {
   const used = groupUsage.value[g.id] || 0
   const hasLessons = store.state.lessons.some((l) => l.groupId === g.id)
-  const locked = used > 0 || hasLessons
+  const locked = hasLessons
   return {
     g, used, locked,
     usage: used ? used + ' ' + plural(used, 'дисциплина', 'дисциплины', 'дисциплин') : 'не используется',
-    delTip: locked ? 'Нельзя удалить: у группы есть дисциплины в плане' : 'Удалить группу',
+    delTip: locked ? 'Нельзя удалить: у группы есть занятия в расписании' : 'Удалить группу',
   }
 }))
 
@@ -75,7 +80,7 @@ const courseOpts = [1, 2, 3, 4].map((c) => ({ v: String(c), label: c + ' кур�
 async function addGroup() {
   const name = ui.gf.name.trim()
   if (!name) { ui.gf.err = 'Укажите название группы'; return }
-  const clash = store.state.groups.find((g) => g.id.toLowerCase() === name.toLowerCase())
+  const clash = store.state.groups.find((g) => g.name.toLowerCase() === name.toLowerCase())
   if (clash) {
     const m = store.state.majors.find((x) => x.id === clash.majorId)
     ui.gf.err = 'Группа «' + name + '» уже есть' + (m ? ' (' + m.code + ')' : '')
@@ -105,7 +110,7 @@ async function delGroup(row) {
   const ok = await confirmDelete({
     title: 'Удалить группу?',
     message: 'Группа будет удалена из справочника. Действие необратимо.',
-    entityName: row.g.id,
+    entityName: row.g.name,
   })
   if (ok) store.deleteGroup(row.g.id)
 }
@@ -138,7 +143,8 @@ const curAbs = computed(() => (curT.value ? curT.value.absences || [] : []))
 const teachUsage = computed(() => {
   if (!curT.value) return { assigns: 0, lessons: 0, locked: false }
   const id = curT.value.id
-  const assigns = Object.values(store.state.assignments).filter((a) => a.teacherId === id).length
+  const assigns = Object.values(store.state.assignments)
+    .reduce((n, byTopic) => n + Object.values(byTopic).filter((a) => a.teacherId === id).length, 0)
   const lessons = store.state.lessons.filter((l) => l.teacherId === id).length
   return { assigns, lessons, locked: assigns > 0 || lessons > 0 }
 })
@@ -300,7 +306,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                 <span>ГРУППА</span><span>КУРС</span><span>ИСПОЛЬЗОВАНИЕ</span><span></span>
               </div>
               <div v-for="row in grpRows" :key="row.g.id" class="grp-row">
-                <span class="grp-name">{{ row.g.id }}</span>
+                <span class="grp-name">{{ row.g.name }}</span>
                 <div class="select-wrap">
                   <select
                     :value="String(row.g.course)"
@@ -327,7 +333,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 
           <div class="card-foot narrow">
             <span class="foot-note">
-              Группа удаляется, только если на ней нет дисциплин. Специальность — только без групп.
+              Группа удаляется, только если на ней нет занятий. Специальность — только без групп.
               Селекты групп в пуле и расписании читают этот справочник.
             </span>
             <span

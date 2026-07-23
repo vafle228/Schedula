@@ -8,7 +8,6 @@ from typing import Any
 from api.services.base import ServiceBase
 from api.services.sync import LessonSyncService
 from core.models.discipline import Topic
-from core.repositories.assignment_repository import AssignmentRepository
 from core.repositories.discipline_repository import (
     DisciplineRepository,
     TopicRepository,
@@ -23,13 +22,11 @@ class TopicService(ServiceBase):
         self,
         topics: TopicRepository,
         disciplines: DisciplineRepository,
-        assignments: AssignmentRepository,
         lessons: LessonRepository,
         sync: LessonSyncService,
     ) -> None:
         self._topics = topics
         self._disciplines = disciplines
-        self._assignments = assignments
         self._lessons = lessons
         self._sync = sync
 
@@ -53,17 +50,19 @@ class TopicService(ServiceBase):
         topic = self._require(self._topics.get(topic_id), "Тема не найдена")
         self._apply(topic, changes)
         self._topics.update(topic)
-        if self._assignments.get(topic.id) is not None:
-            self._sync.sync_topic(topic.id)
+        # Re-sync every group assigned to the topic (no-op when unassigned).
+        self._sync.sync_topic(topic.id)
         return self._require(self._topics.get(topic.id), "Тема не найдена")
 
     def delete(self, topic_id: int) -> None:
-        """Delete a topic together with its assignment and lessons.
+        """Delete a topic together with its assignments and lessons.
+
+        Every group's assignment for the topic cascades off the topic's FK; its
+        lessons carry no cascade and are cleared explicitly.
 
         Raises:
             ApiError: ``404`` when the topic does not exist.
         """
         self._require(self._topics.get(topic_id), "Тема не найдена")
-        self._assignments.delete(topic_id)
         self._lessons.delete_by_topic(topic_id)
         self._topics.delete(topic_id)

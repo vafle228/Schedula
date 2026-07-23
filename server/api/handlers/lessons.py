@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Final
 
-from api.http_types import Body, Params, Query
+from api.http_types import Body, Params, Query, body_year_id, query_year_id
 from api.schemas import serialize as ser
 from api.services.lessons import LessonService
 
@@ -25,11 +25,18 @@ class LessonHandlers:
         self._service = service
 
     def list(self, params: Params, query: Query, body: Body) -> list[dict[str, Any]]:
-        return [ser.lesson(lesson) for lesson in self._service.list_all()]
+        return [
+            ser.lesson(lesson)
+            for lesson in self._service.list_by_year(query_year_id(query))
+        ]
 
     def create(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
-        return ser.lesson(self._service.create(self._to_attrs(body)))
+        attrs = self._to_attrs(body)
+        attrs["year_id"] = body_year_id(body)
+        if "group_id" in attrs and attrs["group_id"] is not None:
+            attrs["group_id"] = int(attrs["group_id"])
+        return ser.lesson(self._service.create(attrs))
 
     def patch(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None

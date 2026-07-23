@@ -16,7 +16,8 @@ class Lesson:
     """A single lesson occurrence.
 
     Attributes:
-        id: Stable identifier, e.g. ``"l1"``.
+        id: Auto-assigned integer primary key.
+        year_id: Owning academic year.
         topic_id: Source topic, or ``None`` for a free manual lesson.
         discipline_id: Owning discipline, or ``None``.
         group_id: Group the lesson is for.
@@ -37,7 +38,8 @@ class Lesson:
     """
 
     id: int
-    group_id: str
+    year_id: int
+    group_id: int
     kind: str
     period: str
     topic_id: int | None = None

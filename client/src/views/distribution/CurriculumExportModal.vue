@@ -17,20 +17,23 @@ const periodBtns = [
 const allRows = computed(() => {
   if (!exp.value) return []
   const rows = []
-  store.state.disciplines
-    .filter((d) => exp.value.period === 'both' || d.period === exp.value.period)
-    .forEach((d) => d.topics.forEach((tp) => {
-      const tid = teacherOfTopic(tp.id)
-      const t = tid ? store.teacherById(tid) : null
-      rows.push({
-        disc: d.name + ', ' + tp.name,
-        group: d.groupId,
-        kind: kindShort(tp.kind),
-        hours: String(tp.hours),
-        teacher: t ? t.name : '— не назначено',
-        assigned: !!t,
-      })
-    }))
+  store.state.groups.forEach((g) => {
+    store.state.disciplines
+      .filter((d) => d.majorId === g.majorId && d.course === g.course
+        && (exp.value.period === 'both' || d.period === exp.value.period))
+      .forEach((d) => d.topics.forEach((tp) => {
+        const tid = teacherOfTopic(g.id, tp.id)
+        const t = tid ? store.teacherById(tid) : null
+        rows.push({
+          disc: d.name + ', ' + tp.name,
+          group: g.name,
+          kind: kindShort(tp.kind),
+          hours: String(tp.hours),
+          teacher: t ? t.name : '— не назначено',
+          assigned: !!t,
+        })
+      }))
+  })
   return rows
 })
 
@@ -54,7 +57,7 @@ let genTimer = null
 async function start() {
   const period = exp.value.period
   dui.exp = { ...exp.value, step: 'gen' }
-  const { exportId } = await api.exportCurriculum(period)
+  const { exportId } = await api.exportCurriculum(store.state.yearId, period)
   const info = await api.getExport(exportId)
   genTimer = setTimeout(() => {
     if (dui.exp) dui.exp = { ...dui.exp, step: 'done', fileName: info.fileName }

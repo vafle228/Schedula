@@ -19,7 +19,7 @@ const curAsg = computed(() => {
   }
   const a = asgOptions.value[parseInt(lf.value.asg)]
   if (!a) return null
-  return { label: a.discipline.name + ', ' + a.discipline.groupId, sub: a.teacherName, a }
+  return { label: a.discipline.name + ', ' + a.groupName, sub: a.teacherName, a }
 })
 
 const weekOpts = computed(() => Array.from({ length: weeksCount.value }, (_, i) => ({ v: String(i + 1), label: 'Неделя ' + (i + 1) })))
@@ -66,7 +66,7 @@ const status = computed(() => {
   } else {
     const a = curAsg.value && curAsg.value.a
     if (!a) return { kind: 'free', text: '' }
-    probe = { id: '__new', t: a.teacherId, subBy: null, g: a.discipline.groupId, room: f.r, kind: f.kind }
+    probe = { id: '__new', t: a.teacherId, subBy: null, g: a.groupName, room: f.r, kind: f.kind }
   }
   return statusFor(probe, parseInt(f.w), parseInt(f.d), parseInt(f.s), f.r)
 })
@@ -110,10 +110,15 @@ async function save() {
   const a = curAsg.value && curAsg.value.a
   if (!a) return
   const unitTopic = a.topics.find((tp) => tp.kind === f.kind) || a.topics[0]
+  if (store.planRemaining(a.groupId, unitTopic.id) <= 0) {
+    const planH = store.topicPlanCount(unitTopic.id) * kindOf(f.kind).acHours
+    f.err = `План по этому типу занятий исчерпан — отведено ${planH} ч`
+    return
+  }
   const payload = {
     topicId: unitTopic.id,
     disciplineId: a.discipline.id,
-    groupId: a.discipline.groupId,
+    groupId: a.groupId,
     teacherId: a.teacherId,
     roomId: f.r || a.defaultRoom,
     kind: f.kind,
@@ -129,8 +134,8 @@ async function save() {
     question,
   }
   ui.lf = null
-  if (payload.day != null && ui.view === 'group' && a.discipline.groupId !== ui.ent.group) {
-    ui.ent.group = a.discipline.groupId
+  if (payload.day != null && ui.view === 'group' && a.groupName !== ui.ent.group) {
+    ui.ent.group = a.groupName
   }
   const created = await store.createManualLesson(payload)
   flash(created.id)

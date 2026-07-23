@@ -10,7 +10,7 @@ import AddTopicModal from './AddTopicModal.vue'
 import CurriculumExportModal from './CurriculumExportModal.vue'
 import {
   dui, norm, filtered, progress, dragTopicIds, dragH, hoursOf, teacherOfTopic,
-  courseOfGroup, openMenuAt, openMenuEv, commitAssign, resetFilters,
+  openMenuAt, openMenuEv, commitAssign, resetFilters,
   kindLabel, kindColor, dotRadius, topicIndex, KINDS,
 } from './useDistribution.js'
 
@@ -63,44 +63,49 @@ const courseOpts = [
 
 const groupsList = computed(() => {
   const map = {}
-  filtered.value.forEach((d) => { (map[d.groupId] = map[d.groupId] || []).push(d) })
-  return Object.keys(map).sort().map((g) => {
-    const ds = map[g]
-    const totalTopics = ds.reduce((n, d) => n + d.topics.length, 0)
-    const asgTopics = ds.reduce((n, d) => n + d.topics.filter((tp) => teacherOfTopic(tp.id)).length, 0)
-    return {
-      label: g,
-      meta: (courseOfGroup(g) || '?') + ' курс, тем ' + asgTopics + '/' + totalTopics,
-      discs: ds.map(mkDisc),
-    }
+  filtered.value.forEach((row) => {
+    const gid = row.group.id
+    ;(map[gid] = map[gid] || { group: row.group, rows: [] }).rows.push(row)
   })
+  return Object.values(map)
+    .sort((a, b) => a.group.name.localeCompare(b.group.name))
+    .map(({ group, rows }) => {
+      const totalTopics = rows.reduce((n, r) => n + r.d.topics.length, 0)
+      const asgTopics = rows.reduce((n, r) => n + r.d.topics.filter((tp) => teacherOfTopic(group.id, tp.id)).length, 0)
+      return {
+        label: group.name,
+        meta: (group.course || '?') + ' курс, тем ' + asgTopics + '/' + totalTopics,
+        discs: rows.map((r) => mkDisc(group, r.d)),
+      }
+    })
 })
 
-function mkDisc(d) {
+function mkDisc(group, d) {
   const total = d.topics.length
-  const asg = d.topics.filter((tp) => teacherOfTopic(tp.id)).length
+  const asg = d.topics.filter((tp) => teacherOfTopic(group.id, tp.id)).length
   const totalHours = d.topics.reduce((h, tp) => h + tp.hours, 0)
   const full = asg >= total
+  const rowKey = group.id + ':' + d.id
   return {
-    d, total, asg, full,
+    group, d, rowKey, total, asg, full,
     hoursLabel: totalHours + ' ч',
     badge: asg + '/' + total,
     badgeColor: full ? '#1F8A5B' : asg ? '#B45309' : '#8A857C',
     badgeBg: full ? 'rgba(31,138,91,0.10)' : asg ? 'rgba(217,119,6,0.10)' : '#F2F0EB',
-    expanded: !!dui.expDisc[d.id],
-    dragging: dui.dragKind === 'disc' && dui.dragId === d.id,
+    expanded: !!dui.expDisc[rowKey],
+    dragging: dui.dragKind === 'disc' && dui.dragId === d.id && dui.dragGroupId === group.id,
     dragTitle: full ? 'Все темы назначены' : 'Перетащите на преподавателя — назначатся все незакрытые темы',
     topics: d.topics
       .filter((tp) => dui.fKind === 'all' || tp.kind === dui.fKind)
-      .map((tp) => mkTopic(d, tp)),
+      .map((tp) => mkTopic(group, d, tp)),
   }
 }
 
-function mkTopic(d, tp) {
-  const tid = teacherOfTopic(tp.id)
+function mkTopic(group, d, tp) {
+  const tid = teacherOfTopic(group.id, tp.id)
   const t = tid ? store.teacherById(tid) : null
   return {
-    tp, t,
+    group, d, tp, t,
     dotColor: kindColor(tp.kind),
     dotRadius: dotRadius(tp.kind),
     kindLabel: kindLabel(tp.kind),
@@ -108,78 +113,81 @@ function mkTopic(d, tp) {
     aInit: t && !t.photo ? initials(t.name) : '',
     aBg: t ? avatarBg(t.photo) : '',
     aTitle: t ? t.name + ' — клик снимает назначение' : '',
-    dragging: dui.dragKind === 'topic' && dui.dragId === tp.id,
+    dragging: dui.dragKind === 'topic' && dui.dragId === tp.id && dui.dragGroupId === group.id,
   }
 }
 
-function toggleDisc(d) {
+function toggleDisc(dv) {
   const ex = { ...dui.expDisc }
-  if (ex[d.id]) delete ex[d.id]
-  else ex[d.id] = true
+  if (ex[dv.rowKey]) delete ex[dv.rowKey]
+  else ex[dv.rowKey] = true
   dui.expDisc = ex
 }
 
-const anyExpanded = computed(() => filtered.value.some((d) => dui.expDisc[d.id]))
+const anyExpanded = computed(() => filtered.value.some((r) => dui.expDisc[r.group.id + ':' + r.d.id]))
 function toggleAll() {
   if (anyExpanded.value) { dui.expDisc = {}; return }
   const ex = {}
-  filtered.value.forEach((d) => { ex[d.id] = true })
+  filtered.value.forEach((r) => { ex[r.group.id + ':' + r.d.id] = true })
   dui.expDisc = ex
 }
 
 /* drag from pool */
-function discDragStart(d, e) {
-  e.dataTransfer.setData('text/plain', d.id)
+function discDragStart(dv, e) {
+  e.dataTransfer.setData('text/plain', dv.d.id)
   e.dataTransfer.effectAllowed = 'move'
   dui.dragKind = 'disc'
-  dui.dragId = d.id
+  dui.dragId = dv.d.id
+  dui.dragGroupId = dv.group.id
 }
-function topicDragStart(tp, e) {
+function topicDragStart(tv, e) {
   e.stopPropagation()
-  e.dataTransfer.setData('text/plain', tp.id)
+  e.dataTransfer.setData('text/plain', tv.tp.id)
   e.dataTransfer.effectAllowed = 'move'
   dui.dragKind = 'topic'
-  dui.dragId = tp.id
+  dui.dragId = tv.tp.id
+  dui.dragGroupId = tv.group.id
 }
 function dragEnd() {
   dui.dragKind = null
   dui.dragId = null
+  dui.dragGroupId = null
   dui.dragOver = null
 }
 
 /* assign / unassign */
-function assignAll(disc, e) {
-  const ids = disc.topics.filter((tp) => !teacherOfTopic(tp.id)).map((tp) => tp.id)
-  if (ids.length) openMenuEv(ids, e, 'Назначить все незакрытые темы: ' + disc.name + ' (' + disc.groupId + ')')
+function assignAll(dv, e) {
+  const ids = dv.d.topics.filter((tp) => !teacherOfTopic(dv.group.id, tp.id)).map((tp) => tp.id)
+  if (ids.length) openMenuEv(ids, e, 'Назначить все незакрытые темы: ' + dv.d.name + ' (' + dv.group.name + ')', dv.group.id)
 }
-function topicPlus(d, tp, e) {
-  openMenuEv([tp.id], e, kindLabel(tp.kind) + ': ' + tp.name + ', ' + d.name + ' (' + d.groupId + ')')
+function topicPlus(tv, e) {
+  openMenuEv([tv.tp.id], e, kindLabel(tv.tp.kind) + ': ' + tv.tp.name + ', ' + tv.d.name + ' (' + tv.group.name + ')', tv.group.id)
 }
-function topicClick(d, tp, e) {
-  openMenuAt([tp.id], e.clientX, e.clientY, kindLabel(tp.kind) + ': ' + tp.name + ', ' + d.name)
+function topicClick(tv, e) {
+  openMenuAt([tv.tp.id], e.clientX, e.clientY, kindLabel(tv.tp.kind) + ': ' + tv.tp.name + ', ' + tv.d.name, tv.group.id)
 }
-function unassign(tp) {
-  commitAssign([{ topicId: tp.id, to: null }])
+function unassign(groupId, tp) {
+  commitAssign([{ groupId, topicId: tp.id, to: null }])
 }
-async function removeDisc(d) {
-  const n = d.topics.length
+async function removeDisc(dv) {
+  const n = dv.d.topics.length
   const ok = await confirmDelete({
     title: 'Удалить дисциплину?',
     message: n
-      ? `Дисциплина и все её темы (${n}) будут удалены из плана вместе с назначениями и занятиями в расписании. Действие необратимо.`
+      ? `Дисциплина и все её темы (${n}) будут удалены из плана всех групп этого курса и специальности, вместе с назначениями и занятиями. Действие необратимо.`
       : 'Дисциплина будет удалена из плана. Действие необратимо.',
-    entityName: `${d.name} · ${d.groupId}`,
+    entityName: `${dv.d.name} · ${dv.group.name}`,
   })
-  if (ok) store.removeDiscipline(d.id)
+  if (ok) store.removeDiscipline(dv.d.id)
 }
 
-async function removeTopic(d, tp) {
+async function removeTopic(tv) {
   const ok = await confirmDelete({
     title: 'Удалить тему?',
-    message: 'Тема, её назначение и занятия в расписании будут удалены. Дисциплина сохранится. Действие необратимо.',
-    entityName: `${tp.name} · ${d.name}`,
+    message: 'Тема, её назначения и занятия в расписании будут удалены во всех группах курса. Дисциплина сохранится. Действие необратимо.',
+    entityName: `${tv.tp.name} · ${tv.d.name}`,
   })
-  if (ok) store.removeTopic(tp.id)
+  if (ok) store.removeTopic(tv.tp.id)
 }
 
 /* ---------- teachers view-model ---------- */
@@ -198,11 +206,15 @@ function mkTeacher(t) {
   const warn = h > norm
   const { topicById, discOfTopic } = topicIndex.value
   const assigns = []
-  for (const topId in store.state.assignments) {
-    if (store.state.assignments[topId].teacherId !== t.id) continue
-    const d = discOfTopic[topId]
-    const tp = topicById[topId]
-    if (d && tp && d.period === period) assigns.push({ d, tp })
+  const asg = store.state.assignments
+  for (const gid in asg) {
+    for (const topId in asg[gid]) {
+      if (asg[gid][topId].teacherId !== t.id) continue
+      const d = discOfTopic[topId]
+      const tp = topicById[topId]
+      const g = store.groupById(Number(gid))
+      if (d && tp && g && d.period === period) assigns.push({ d, tp, group: g })
+    }
   }
   return {
     t, h, over, warn, assigns,
@@ -227,8 +239,9 @@ function toggleTeacher(t) {
 }
 
 function teacherDrop(t) {
-  if (dragTopicIds.value.length) {
-    commitAssign(dragTopicIds.value.map((id) => ({ topicId: id, to: t.id })))
+  const groupId = dui.dragGroupId
+  if (dragTopicIds.value.length && groupId != null) {
+    commitAssign(dragTopicIds.value.map((id) => ({ groupId, topicId: id, to: t.id })))
   }
   dragEnd()
 }
@@ -297,7 +310,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   <div class="view">
     <!-- ======= header ======= -->
     <div class="head">
-      <span class="head-title" title="Учебный план, учебный год 2026/27">Учебный план</span>
+      <span class="head-title" :title="'Учебный план, учебный год ' + store.yearName">Учебный план</span>
       <span class="sem-plaque" title="Семестр активного учебного года — переключается прямо здесь">
         <span class="plaque-lead mono">СЕМЕСТР</span>
         <button
@@ -310,7 +323,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
       </span>
       <router-link class="year-chip" to="/settings" title="Даты семестров, сетка звонков — в настройках учебного года">
         <span class="plaque-lead mono">УЧ. ГОД</span>
-        <span class="yc-year">2026/27</span>
+        <span class="yc-year">{{ store.yearName }}</span>
         <span class="yc-act mono">настроить ↗</span>
       </router-link>
       <div class="progress">
@@ -393,13 +406,13 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
               <span class="group-name">{{ grp.label }}</span>
               <span class="group-meta mono">{{ grp.meta }}</span>
             </div>
-            <div v-for="dv in grp.discs" :key="dv.d.id" class="disc" :class="{ dragging: dv.dragging }">
+            <div v-for="dv in grp.discs" :key="dv.rowKey" class="disc" :class="{ dragging: dv.dragging }">
               <div
                 class="disc-head"
                 :title="dv.dragTitle"
                 draggable="true"
-                @click="toggleDisc(dv.d)"
-                @dragstart="discDragStart(dv.d, $event)"
+                @click="toggleDisc(dv)"
+                @dragstart="discDragStart(dv, $event)"
                 @dragend="dragEnd"
               >
                 <span class="chevron" title="Развернуть / свернуть темы">{{ dv.expanded ? '▾' : '▸' }}</span>
@@ -411,12 +424,12 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   v-if="!dv.full"
                   class="plus-circle"
                   title="Назначить все незакрытые темы"
-                  @click.stop="assignAll(dv.d, $event)"
+                  @click.stop="assignAll(dv, $event)"
                 >＋</span>
                 <span
                   class="disc-rm"
                   title="Удалить дисциплину из плана"
-                  @click.stop="removeDisc(dv.d)"
+                  @click.stop="removeDisc(dv)"
                 >×</span>
               </div>
               <div v-if="dv.expanded" class="topics">
@@ -426,9 +439,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   class="topic-row"
                   :style="{ opacity: tv.dragging ? 0.4 : 1 }"
                   draggable="true"
-                  @click="topicClick(dv.d, tv.tp, $event)"
-                  @contextmenu.prevent="topicClick(dv.d, tv.tp, $event)"
-                  @dragstart="topicDragStart(tv.tp, $event)"
+                  @click="topicClick(tv, $event)"
+                  @contextmenu.prevent="topicClick(tv, $event)"
+                  @dragstart="topicDragStart(tv, $event)"
                   @dragend="dragEnd"
                 >
                   <span
@@ -443,7 +456,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                     v-if="tv.t"
                     class="assignee"
                     :title="tv.aTitle"
-                    @click.stop="unassign(tv.tp)"
+                    @click.stop="unassign(tv.group.id, tv.tp)"
                   >
                     <span
                       class="a-avatar"
@@ -455,12 +468,12 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                     v-else
                     class="plus-circle"
                     title="Назначить преподавателя"
-                    @click.stop="topicPlus(dv.d, tv.tp, $event)"
+                    @click.stop="topicPlus(tv, $event)"
                   >＋</span>
                   <span
                     class="topic-rm"
                     title="Удалить тему из плана"
-                    @click.stop="removeTopic(dv.d, tv.tp)"
+                    @click.stop="removeTopic(tv)"
                   >×</span>
                 </div>
                 <div
@@ -529,11 +542,11 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   class="kind-dot"
                   :style="{ borderRadius: dotRadius(a.tp.kind), background: kindColor(a.tp.kind) }"
                 ></span>
-                <span class="ta-label" :title="a.d.name + ', ' + a.tp.name + ' — ' + a.d.groupId">
-                  {{ a.d.name }}, {{ a.tp.name }}
+                <span class="ta-label" :title="a.d.name + ', ' + a.tp.name + ' — ' + a.group.name">
+                  {{ a.group.name }} · {{ a.d.name }}, {{ a.tp.name }}
                 </span>
                 <span class="ta-hours mono">{{ a.tp.hours }} ч</span>
-                <span class="ta-rm" title="Снять назначение" @click.stop="unassign(a.tp)">×</span>
+                <span class="ta-rm" title="Снять назначение" @click.stop="unassign(a.group.id, a.tp)">×</span>
               </div>
               <div v-if="tv.assigns.length === 0" class="t-empty">
                 Нет назначений — перетащите тему или нажмите ＋ на теме

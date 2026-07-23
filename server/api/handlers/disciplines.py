@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from api.http_types import Body, Params, Query
+from api.http_types import Body, Params, Query, body_year_id, query_year_id
 from api.schemas import serialize as ser
 from api.services.disciplines import DisciplineService
 
@@ -16,7 +16,7 @@ class DisciplineHandlers:
         self._service = service
 
     def list(self, params: Params, query: Query, body: Body) -> list[dict[str, Any]]:
-        return [ser.discipline(d) for d in self._service.list_all()]
+        return [ser.discipline(d) for d in self._service.list_by_year(query_year_id(query))]
 
     def create(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
@@ -25,8 +25,10 @@ class DisciplineHandlers:
             for spec in body.get("topics") or []
         ]
         discipline = self._service.create(
+            year_id=body_year_id(body),
             name=body.get("name"),
-            group_id=body.get("groupId"),
+            major_id=int(body["majorId"]),
+            course=int(body["course"]),
             period=body.get("period"),
             topic_specs=topic_specs,
         )
@@ -37,8 +39,10 @@ class DisciplineHandlers:
         changes: dict[str, Any] = {}
         if "name" in body:
             changes["name"] = body["name"]
-        if "groupId" in body:
-            changes["group_id"] = body["groupId"]
+        if "majorId" in body:
+            changes["major_id"] = int(body["majorId"])
+        if "course" in body:
+            changes["course"] = int(body["course"])
         if "period" in body:
             changes["period"] = body["period"]
         if "isNew" in body:

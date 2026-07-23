@@ -13,6 +13,7 @@ const scopeAllN = computed(() => (ex.value.view === 'teacher' ? store.state.teac
 
 async function run() {
   const { exportId } = await api.exportSchedule({
+    yearId: store.state.yearId,
     period: store.state.period,
     view: ex.value.view,
     scope: ex.value.scope,

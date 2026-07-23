@@ -31,8 +31,8 @@ const list = computed(() => {
 })
 
 function pick(t) {
-  const ids = dui.menu.ids
-  commitAssign(ids.map((id) => ({ topicId: id, to: t.id })))
+  const { ids, groupId } = dui.menu
+  commitAssign(ids.map((id) => ({ groupId, topicId: id, to: t.id })))
   dui.menu = null
 }
 </script>

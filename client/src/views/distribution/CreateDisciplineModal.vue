@@ -16,9 +16,12 @@ watch(() => dui.cd, async (cd) => {
 
 const cd = computed(() => dui.cd)
 
-const groupOpts = computed(() => store.state.groups.map((g) => ({ v: g.id, label: g.id + ' · ' + g.course + ' курс' })))
+const groupOpts = computed(() => store.state.groups.map((g) => ({ v: g.id, label: g.name + ' · ' + g.course + ' курс' })))
 
-const selectedGroup = computed(() => store.groupById((cd.value.group || '').trim()))
+const selectedGroup = computed(() => {
+  const gid = Number(cd.value.group)
+  return gid ? store.groupById(gid) : null
+})
 
 const totalHours = computed(() => cd.value.topics.reduce((h, t) => h + (Number(t.hours) || 0), 0))
 
@@ -27,8 +30,8 @@ const totalHours = computed(() => cd.value.topics.reduce((h, t) => h + (Number(t
 const courseLabel = computed(() => (selectedGroup.value ? selectedGroup.value.course + ' курс' : 'зависит от группы'))
 const semesterLabel = computed(() => (store.state.period === 'fall' ? 'осенний семестр' : 'весенний семестр'))
 
-// единственный блокер — непустое название; дисциплина без группы разрешена
-const valid = computed(() => !!(cd.value && cd.value.name.trim()))
+// дисциплина привязывается к группе учебного года — название и группа обязательны
+const valid = computed(() => !!(cd.value && cd.value.name.trim() && selectedGroup.value))
 
 function addTopicRow() {
   cd.value.topics.push({ kind: 'lec', name: '', hours: 24 })
@@ -41,14 +44,15 @@ function removeTopicRow(i) {
 async function save() {
   const c = cd.value
   if (!c.name.trim()) { c.error = 'Укажите название дисциплины'; return }
+  if (!selectedGroup.value) { c.error = 'Выберите группу'; return }
   // пустые строки тем молча отбрасываются; дисциплина без тем разрешена
   const topics = c.topics
     .filter((t) => t.name.trim() && Number(t.hours) > 0)
     .map((t) => ({ kind: t.kind, name: t.name.trim(), hours: Number(t.hours) }))
-  const groupId = selectedGroup.value ? selectedGroup.value.id : 'Без группы'
-  const payload = { name: c.name.trim(), groupId, period: store.state.period, topics }
+  const g = selectedGroup.value
+  const payload = { name: c.name.trim(), majorId: g.majorId, course: g.course, period: store.state.period, topics }
   const d = await store.createDiscipline(payload)
-  dui.expDisc = { ...dui.expDisc, [d.id]: true }
+  dui.expDisc = { ...dui.expDisc, [g.id + ':' + d.id]: true }
   dui.cd = null
 }
 </script>

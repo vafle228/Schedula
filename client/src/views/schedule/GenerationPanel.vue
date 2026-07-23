@@ -71,7 +71,7 @@ const title = computed(() => {
 let pollT = null
 
 async function run() {
-  const { jobId } = await api.startGeneration(store.state.period, gen.value.mode)
+  const { jobId } = await api.startGeneration(store.state.yearId, store.state.period, gen.value.mode)
   ui.gen = { ...gen.value, phase: 'run', jobId, pct: 0, stage: 'Готовлю данные…', live: '' }
   pollT = setInterval(async () => {
     if (!ui.gen || ui.gen.phase !== 'run') { clearInterval(pollT); return }

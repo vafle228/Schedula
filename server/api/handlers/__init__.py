@@ -9,9 +9,9 @@ from api.handlers.exports import ExportHandlers
 from api.handlers.groups import GroupHandlers
 from api.handlers.lessons import LessonHandlers
 from api.handlers.majors import MajorHandlers
-from api.handlers.periods import PeriodHandlers
 from api.handlers.rooms import RoomHandlers
 from api.handlers.schedule import ScheduleHandlers
+from api.handlers.settings import SettingsHandlers
 from api.handlers.teachers import TeacherHandlers
 from api.handlers.topic_types import TopicTypeHandlers
 from api.handlers.topics import TopicHandlers
@@ -25,9 +25,9 @@ __all__ = [
     "GroupHandlers",
     "LessonHandlers",
     "MajorHandlers",
-    "PeriodHandlers",
     "RoomHandlers",
     "ScheduleHandlers",
+    "SettingsHandlers",
     "TeacherHandlers",
     "TopicHandlers",
     "TopicTypeHandlers",

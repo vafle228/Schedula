@@ -13,14 +13,14 @@ from dataclasses import replace
 from typing import Any
 
 from api.services.conflicts import EnrichedLesson, slot_status
-from core.models.period import Period
+from core.models.settings import SemesterSettings
 from core.models.teacher import Teacher
 
 
 def compute_generation(
     enriched: list[EnrichedLesson],
     teachers: list[Teacher],
-    cfg: Period,
+    cfg: SemesterSettings,
     mode: str,
     kind_hours: Callable[[str], int],
 ) -> dict[str, Any]:

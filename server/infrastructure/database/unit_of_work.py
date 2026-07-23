@@ -34,11 +34,11 @@ from infrastructure.database.repositories.lesson_repository_sqllite import (
 from infrastructure.database.repositories.major_repository_sqllite import (
     MajorRepositorySqlLite,
 )
-from infrastructure.database.repositories.period_repository_sqllite import (
-    PeriodRepositorySqlLite,
-)
 from infrastructure.database.repositories.room_repository_sqllite import (
     RoomRepositorySqlLite,
+)
+from infrastructure.database.repositories.settings_repository_sqllite import (
+    SettingsRepositorySqlLite,
 )
 from infrastructure.database.repositories.teacher_repository_sqllite import (
     TeacherRepositorySqlLite,
@@ -62,7 +62,7 @@ class SqliteUnitOfWork:
         if create_schema:
             initialize(self._conn)
 
-        self.periods = PeriodRepositorySqlLite(self._conn)
+        self.settings = SettingsRepositorySqlLite(self._conn)
         self.years = AcademicYearRepositorySqlLite(self._conn)
         self.topic_types = TopicTypeRepositorySqlLite(self._conn)
         self.teachers = TeacherRepositorySqlLite(self._conn)

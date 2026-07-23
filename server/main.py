@@ -59,7 +59,7 @@ def build_api(uow: SqliteUnitOfWork | None = None) -> Bottle:
     """
     if uow is None:
         uow = SqliteUnitOfWork(DB_PATH)
-        if not uow.periods.list_all():
+        if not uow.years.list_all():
             seed_database(uow)
 
     dispatch = create_dispatcher(uow)

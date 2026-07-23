@@ -123,7 +123,7 @@ export const problemsN = computed(() => analysis.value.hardN + analysis.value.or
 /* ---------- entity navigation ---------- */
 
 export function entList() {
-  if (ui.view === 'group') return store.state.groups.map((g) => ({ v: g.id, label: g.id }))
+  if (ui.view === 'group') return store.state.groups.map((g) => ({ v: g.name, label: g.name }))
   if (ui.view === 'teacher') return store.state.teachers.map((t) => ({ v: t.id, label: t.name }))
   return store.state.rooms.map((r) => ({ v: r.id, label: r.id + ', ' + r.type }))
 }
@@ -204,25 +204,29 @@ export async function pinLessons(ids) {
 
 /* ---------- dialogs ---------- */
 
-/** Unique «дисциплина + преподаватель» combos coming from «Распределение». */
+/** Unique «группа + дисциплина + преподаватель» combos from «Распределение». */
 export const asgOptions = computed(() => {
   const seen = {}
   const out = []
-  store.assignedTopics(store.state.period).forEach(({ topic, discipline, teacherId }) => {
-    const key = discipline.id + '|' + teacherId
+  store.assignedTopics(store.state.period).forEach(({ topic, discipline, group, teacherId }) => {
+    const key = group.id + '|' + discipline.id + '|' + teacherId
     if (!seen[key]) {
-      seen[key] = { discipline, teacherId, topics: [] }
+      seen[key] = { discipline, group, teacherId, topics: [] }
       out.push(seen[key])
     }
     seen[key].topics.push(topic)
   })
   return out.map((a, i) => {
     const t = store.teacherById(a.teacherId)
-    const sibling = store.state.lessons.find((l) => l.disciplineId === a.discipline.id)
+    const sibling = store.state.lessons.find(
+      (l) => l.disciplineId === a.discipline.id && l.groupId === a.group.id,
+    )
     return {
       v: String(i),
-      label: a.discipline.name + ', ' + a.discipline.groupId + ', ' + (t ? t.name : ''),
+      label: a.discipline.name + ', ' + a.group.name + ', ' + (t ? t.name : ''),
       discipline: a.discipline,
+      groupId: a.group.id,
+      groupName: a.group.name,
       teacherId: a.teacherId,
       teacherName: t ? t.name : '',
       topics: a.topics,
@@ -258,7 +262,7 @@ export function openLf(pos, id) {
   if (!opts.length) return
   let asg = 0
   if (ui.view === 'group') {
-    const i = opts.findIndex((a) => a.discipline.groupId === ui.ent.group)
+    const i = opts.findIndex((a) => a.groupName === ui.ent.group)
     if (i >= 0) asg = i
   }
   ui.lf = {

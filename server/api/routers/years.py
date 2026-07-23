@@ -10,4 +10,5 @@ def register_year_routes(router: Router, handlers: YearHandlers) -> None:
     router.on("GET", "/years", handlers.list)
     router.on("POST", "/years", handlers.create)
     router.on("POST", "/years/:id/activate", handlers.activate)
+    router.on("POST", "/years/:id/rollover", handlers.rollover)
     router.on("DELETE", "/years/:id", handlers.delete)

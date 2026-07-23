@@ -48,8 +48,10 @@ class DisciplineRepositorySqlLite(DisciplineRepository):
     def _row_to_discipline(self, row: sqlite3.Row) -> Discipline:
         return Discipline(
             id=row["id"],
+            year_id=row["year_id"],
             name=row["name"],
-            group_id=row["group_id"],
+            major_id=row["major_id"],
+            course=row["course"],
             period=row["period"],
             is_new=bool(row["is_new"]),
             topics=self._topics_for(row["id"]),
@@ -61,6 +63,12 @@ class DisciplineRepositorySqlLite(DisciplineRepository):
         ).fetchall()
         return [self._row_to_discipline(r) for r in rows]
 
+    def list_by_year(self, year_id: int) -> list[Discipline]:
+        rows = self._conn.execute(
+            "SELECT * FROM disciplines WHERE year_id = ? ORDER BY rowid", (year_id,)
+        ).fetchall()
+        return [self._row_to_discipline(r) for r in rows]
+
     def get(self, discipline_id: int) -> Discipline | None:
         row = self._conn.execute(
             "SELECT * FROM disciplines WHERE id = ?", (discipline_id,)
@@ -69,27 +77,32 @@ class DisciplineRepositorySqlLite(DisciplineRepository):
 
     def add(self, discipline: Discipline) -> int:
         cursor = self._conn.execute(
-            "INSERT INTO disciplines (name, group_id, period, is_new) VALUES (?, ?, ?, ?)",
+            "INSERT INTO disciplines (year_id, name, major_id, course, period, is_new) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
             (
+                discipline.year_id,
                 discipline.name,
-                discipline.group_id,
+                discipline.major_id,
+                discipline.course,
                 discipline.period,
                 int(discipline.is_new),
             ),
         )
         discipline.id = cursor.lastrowid
         for topic in discipline.topics:
+            topic.discipline_id = discipline.id
             _insert_topic(self._conn, topic)
         self._conn.commit()
         return discipline.id
 
     def update(self, discipline: Discipline) -> None:
         self._conn.execute(
-            "UPDATE disciplines SET name = ?, group_id = ?, period = ?, is_new = ? "
-            "WHERE id = ?",
+            "UPDATE disciplines SET name = ?, major_id = ?, course = ?, period = ?, "
+            "is_new = ? WHERE id = ?",
             (
                 discipline.name,
-                discipline.group_id,
+                discipline.major_id,
+                discipline.course,
                 discipline.period,
                 int(discipline.is_new),
                 discipline.id,

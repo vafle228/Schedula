@@ -22,9 +22,9 @@ from api.handlers import (
     GroupHandlers,
     LessonHandlers,
     MajorHandlers,
-    PeriodHandlers,
     RoomHandlers,
     ScheduleHandlers,
+    SettingsHandlers,
     TeacherHandlers,
     TopicHandlers,
     TopicTypeHandlers,
@@ -39,9 +39,9 @@ from api.routers import (
     register_group_routes,
     register_lesson_routes,
     register_major_routes,
-    register_period_routes,
     register_room_routes,
     register_schedule_routes,
+    register_settings_routes,
     register_teacher_routes,
     register_topic_routes,
     register_topic_type_routes,
@@ -56,9 +56,10 @@ from api.services import (
     LessonService,
     LessonSyncService,
     MajorService,
-    PeriodService,
+    RolloverService,
     RoomService,
     ScheduleService,
+    SettingsService,
     TeacherService,
     TopicService,
     TopicTypeService,
@@ -84,16 +85,25 @@ def create_dispatcher(
     sync = LessonSyncService(
         topics=uow.topics,
         disciplines=uow.disciplines,
+        groups=uow.groups,
         assignments=uow.assignments,
-        periods=uow.periods,
+        settings=uow.settings,
         lessons=uow.lessons,
         rooms=uow.rooms,
         teachers=uow.teachers,
     )
 
     router = Router()
-    register_period_routes(router, PeriodHandlers(PeriodService(uow.periods)))
-    register_year_routes(router, YearHandlers(YearService(uow.years)))
+    register_settings_routes(
+        router, SettingsHandlers(SettingsService(uow.settings, uow.years))
+    )
+    register_year_routes(
+        router,
+        YearHandlers(
+            YearService(uow.years, uow.settings, uow.lessons),
+            RolloverService(years=uow.years, disciplines=uow.disciplines),
+        ),
+    )
     register_topic_type_routes(
         router,
         TopicTypeHandlers(TopicTypeService(uow.topic_types, uow.disciplines)),
@@ -103,9 +113,7 @@ def create_dispatcher(
     )
     register_group_routes(
         router,
-        GroupHandlers(
-            GroupService(uow.groups, uow.majors, uow.disciplines, uow.lessons)
-        ),
+        GroupHandlers(GroupService(uow.groups, uow.majors, uow.lessons)),
     )
     register_discipline_routes(
         router,
@@ -116,9 +124,7 @@ def create_dispatcher(
     register_topic_routes(
         router,
         TopicHandlers(
-            TopicService(
-                uow.topics, uow.disciplines, uow.assignments, uow.lessons, sync
-            )
+            TopicService(uow.topics, uow.disciplines, uow.lessons, sync)
         ),
     )
     register_assignment_routes(
@@ -149,7 +155,7 @@ def create_dispatcher(
                 lessons=uow.lessons,
                 teachers=uow.teachers,
                 rooms=uow.rooms,
-                periods=uow.periods,
+                settings=uow.settings,
                 topic_types=uow.topic_types,
                 sync=sync,
             )

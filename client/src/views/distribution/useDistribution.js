@@ -14,8 +14,9 @@ export const dui = reactive({
   expTeacher: {},
   dragKind: null, // 'topic' | 'disc'
   dragId: null,
+  dragGroupId: null, // group the dragged topic/discipline is being assigned for
   dragOver: null, // teacher id under the dragged item
-  menu: null, // { ids, x, y, title }
+  menu: null, // { ids, groupId, x, y, title }
   menuSearch: '',
   leftW: 560,
   ov: false,
@@ -37,8 +38,10 @@ export const topicIndex = computed(() => {
   return { topicById, discOfTopic }
 })
 
-export function teacherOfTopic(topicId) {
-  const a = store.state.assignments[topicId]
+/** Teacher assigned to teach ``topicId`` to ``groupId`` — null when unassigned. */
+export function teacherOfTopic(groupId, topicId) {
+  const g = store.state.assignments[groupId]
+  const a = g ? g[topicId] : null
   return a ? a.teacherId : null
 }
 
@@ -47,36 +50,55 @@ export function courseOfGroup(groupId) {
   return g ? g.course : null
 }
 
-/** Assigned hours of a teacher within a period. */
+/** Assigned hours of a teacher within a period, summed over every group. */
 export function hoursOf(tid, period) {
   const { topicById, discOfTopic } = topicIndex.value
   let h = 0
-  for (const topId in store.state.assignments) {
-    if (store.state.assignments[topId].teacherId !== tid) continue
-    const d = discOfTopic[topId]
-    if (d && d.period === period && topicById[topId]) h += topicById[topId].hours
+  const asg = store.state.assignments
+  for (const gid in asg) {
+    for (const topId in asg[gid]) {
+      if (asg[gid][topId].teacherId !== tid) continue
+      const d = discOfTopic[topId]
+      if (d && d.period === period && topicById[topId]) h += topicById[topId].hours
+    }
   }
   return h
 }
 
-/* ---------- pool filtering ---------- */
+/* ---------- pool rows ---------- */
+
+/**
+ * The pool works in (group, discipline) rows: a discipline belongs to a
+ * (major, course), so it surfaces under every group of that major and course,
+ * where its teachers are assigned per group.
+ */
+export const planRows = computed(() => {
+  const period = store.state.period
+  const rows = []
+  store.state.groups.forEach((g) => {
+    store.state.disciplines.forEach((d) => {
+      if (d.period === period && d.majorId === g.majorId && d.course === g.course) {
+        rows.push({ group: g, d })
+      }
+    })
+  })
+  return rows
+})
 
 export const filtered = computed(() => {
   const q = dui.search.trim().toLowerCase()
-  const period = store.state.period
-  return store.state.disciplines.filter((d) => {
-    if (d.period !== period) return false
+  return planRows.value.filter(({ group, d }) => {
     if (q && !(
       d.name.toLowerCase().includes(q)
-      || d.groupId.toLowerCase().includes(q)
+      || group.name.toLowerCase().includes(q)
       || d.topics.some((tp) => tp.name.toLowerCase().includes(q))
     )) return false
     if (dui.fKind !== 'all' && !d.topics.some((tp) => tp.kind === dui.fKind)) return false
     const total = d.topics.length
-    const asg = d.topics.filter((tp) => teacherOfTopic(tp.id)).length
+    const asg = d.topics.filter((tp) => teacherOfTopic(group.id, tp.id)).length
     if (dui.fStatus === 'open' && asg >= total) return false
     if (dui.fStatus === 'done' && asg < total) return false
-    if (dui.fCourse !== 'all' && courseOfGroup(d.groupId) !== Number(dui.fCourse)) return false
+    if (dui.fCourse !== 'all' && group.course !== Number(dui.fCourse)) return false
     return true
   })
 })
@@ -84,9 +106,9 @@ export const filtered = computed(() => {
 export const progress = computed(() => {
   let tot = 0
   let don = 0
-  store.state.disciplines
-    .filter((d) => d.period === store.state.period)
-    .forEach((d) => d.topics.forEach((tp) => { tot++; if (teacherOfTopic(tp.id)) don++ }))
+  planRows.value.forEach(({ group, d }) => {
+    d.topics.forEach((tp) => { tot++; if (teacherOfTopic(group.id, tp.id)) don++ })
+  })
   return { tot, don }
 })
 
@@ -94,9 +116,9 @@ export const progress = computed(() => {
 
 export const dragTopicIds = computed(() => {
   if (dui.dragId && dui.dragKind === 'topic') return [dui.dragId]
-  if (dui.dragId && dui.dragKind === 'disc') {
+  if (dui.dragId && dui.dragKind === 'disc' && dui.dragGroupId != null) {
     const d = store.state.disciplines.find((x) => x.id === dui.dragId)
-    if (d) return d.topics.filter((tp) => !teacherOfTopic(tp.id)).map((tp) => tp.id)
+    if (d) return d.topics.filter((tp) => !teacherOfTopic(dui.dragGroupId, tp.id)).map((tp) => tp.id)
   }
   return []
 })
@@ -108,16 +130,16 @@ export const dragH = computed(() => {
 
 /* ---------- assign menu ---------- */
 
-export function openMenuAt(ids, x, y, title) {
+export function openMenuAt(ids, x, y, title, groupId) {
   x = Math.max(8, Math.min(x, window.innerWidth - 315))
   y = Math.max(8, Math.min(y, window.innerHeight - 400))
-  dui.menu = { ids, x, y, title }
+  dui.menu = { ids, groupId, x, y, title }
   dui.menuSearch = ''
 }
 
-export function openMenuEv(ids, e, title) {
+export function openMenuEv(ids, e, title, groupId) {
   const r = e.currentTarget.getBoundingClientRect()
-  openMenuAt(ids, r.left, r.bottom + 6, title)
+  openMenuAt(ids, r.left, r.bottom + 6, title, groupId)
 }
 
 /* ---------- actions ---------- */

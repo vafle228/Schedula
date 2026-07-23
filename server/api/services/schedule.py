@@ -21,8 +21,8 @@ from api.services.generator import compute_generation
 from api.services.kinds import make_kind_hours
 from api.services.sync import LessonSyncService
 from core.repositories.lesson_repository import LessonRepository
-from core.repositories.period_repository import PeriodRepository
 from core.repositories.room_repository import RoomRepository
+from core.repositories.settings_repository import SettingsRepository
 from core.repositories.teacher_repository import TeacherRepository
 from core.repositories.topic_type_repository import TopicTypeRepository
 
@@ -49,22 +49,22 @@ class ScheduleService(ServiceBase):
         lessons: LessonRepository,
         teachers: TeacherRepository,
         rooms: RoomRepository,
-        periods: PeriodRepository,
+        settings: SettingsRepository,
         topic_types: TopicTypeRepository,
         sync: LessonSyncService,
     ) -> None:
         self._lessons = lessons
         self._teachers = teachers
         self._rooms = rooms
-        self._periods = periods
+        self._settings = settings
         self._topic_types = topic_types
         self._sync = sync
         self._jobs: dict[str, dict[str, Any]] = {}
         self._counter = 0
 
-    def readiness(self, period: str) -> dict[str, Any]:
-        """Summarise how ready ``period`` is for generation."""
-        lessons = self._lessons.list_by_period(period)
+    def readiness(self, year_id: int, period: str) -> dict[str, Any]:
+        """Summarise how ready the year's ``period`` is for generation."""
+        lessons = self._lessons.list_by_year_period(year_id, period)
         return {
             "totalPairs": len(lessons),
             "placedPairs": sum(1 for l in lessons if l.day is not None),
@@ -75,21 +75,21 @@ class ScheduleService(ServiceBase):
             "pinnedCount": sum(1 for l in lessons if l.pin and l.day is not None),
         }
 
-    def conflicts(self, period: str) -> dict[str, Any]:
-        """Run the conflict pass over ``period`` and return the ``analyze`` result."""
+    def conflicts(self, year_id: int, period: str) -> dict[str, Any]:
+        """Run the conflict pass over a year's ``period`` and return the result."""
         return analyze(
-            self._sync.enrich(period),
+            self._sync.enrich(year_id, period),
             self._teachers.list_all(),
-            self._periods.get(period),
+            self._settings.get(year_id, period),
             self._kind_hours(),
         )
 
-    def start_generation(self, period: str, mode: str) -> dict[str, str]:
+    def start_generation(self, year_id: int, period: str, mode: str) -> dict[str, str]:
         """Kick off a generation job and return its id."""
         result = compute_generation(
-            self._sync.enrich(period),
+            self._sync.enrich(year_id, period),
             self._teachers.list_all(),
-            self._periods.get(period),
+            self._settings.get(year_id, period),
             mode,
             self._kind_hours(),
         )

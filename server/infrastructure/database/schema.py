@@ -2,10 +2,15 @@
 
 Auto-generated identifiers use ``INTEGER PRIMARY KEY`` (SQLite rowid alias,
 effectively AUTOINCREMENT). Semantic/natural keys that double as display names
-— ``periods.id`` (``fall``/``spring``), ``rooms.id``, ``groups.id``,
-``topic_types.k`` — stay ``TEXT``.
+— ``rooms.id`` and ``topic_types.k`` — stay ``TEXT``.
 
-Structured sub-objects that have no query needs — period
+The academic year is the primary scope. ``settings`` holds one schedule-grid
+config per ``(year_id, period)`` (season = ``fall``/``spring``); its calendar
+dates are derived from the parent year, not stored. ``groups``, ``disciplines``
+and ``lessons`` are year-scoped; a group carries an integer surrogate id and a
+display ``name`` (duplicate names across years are expected — links go by id).
+
+Structured sub-objects that have no query needs — settings
 ``slots``/``active_days``/``holidays`` and teacher ``constraints`` — are stored
 as JSON ``TEXT`` and hydrated by the repositories.
 
@@ -18,19 +23,6 @@ from __future__ import annotations
 import sqlite3
 
 SCHEMA: str = """
-CREATE TABLE IF NOT EXISTS periods (
-    id            TEXT PRIMARY KEY,
-    date_from     TEXT NOT NULL,
-    date_to       TEXT NOT NULL,
-    start_date    TEXT NOT NULL,
-    active_days   TEXT NOT NULL,   -- JSON: [bool x7]
-    acad_min      INTEGER NOT NULL,
-    slots         TEXT NOT NULL,   -- JSON: [{start,hours,brk}]
-    slots_per_day INTEGER NOT NULL,
-    weeks_count   INTEGER NOT NULL,
-    holidays      TEXT NOT NULL    -- JSON: ["w-d", ...]
-);
-
 CREATE TABLE IF NOT EXISTS academic_years (
     id       INTEGER PRIMARY KEY,
     name     TEXT NOT NULL,
@@ -39,6 +31,19 @@ CREATE TABLE IF NOT EXISTS academic_years (
     spr_from TEXT NOT NULL,
     spr_to   TEXT NOT NULL,
     status   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS settings (
+    year_id       INTEGER NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+    period        TEXT NOT NULL,   -- 'fall' | 'spring'
+    start_date    TEXT NOT NULL,   -- ISO date of the first study day
+    active_days   TEXT NOT NULL,   -- JSON: [bool x7]
+    acad_min      INTEGER NOT NULL,
+    slots         TEXT NOT NULL,   -- JSON: [{start,hours,brk}]
+    slots_per_day INTEGER NOT NULL,
+    weeks_count   INTEGER NOT NULL,
+    holidays      TEXT NOT NULL,   -- JSON: ["w-d", ...]
+    PRIMARY KEY (year_id, period)
 );
 
 CREATE TABLE IF NOT EXISTS topic_types (
@@ -76,15 +81,19 @@ CREATE TABLE IF NOT EXISTS majors (
 );
 
 CREATE TABLE IF NOT EXISTS groups (
-    id       TEXT PRIMARY KEY,
+    id       INTEGER PRIMARY KEY,
+    year_id  INTEGER NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+    name     TEXT NOT NULL,       -- e.g. "ИС-31" (unique within a year, not globally)
     major_id INTEGER NOT NULL REFERENCES majors(id),
     course   INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS disciplines (
     id       INTEGER PRIMARY KEY,
+    year_id  INTEGER NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
     name     TEXT NOT NULL,
-    group_id TEXT NOT NULL REFERENCES groups(id),
+    major_id INTEGER NOT NULL REFERENCES majors(id),
+    course   INTEGER NOT NULL,
     period   TEXT NOT NULL,
     is_new   INTEGER NOT NULL DEFAULT 0
 );
@@ -98,16 +107,19 @@ CREATE TABLE IF NOT EXISTS topics (
 );
 
 CREATE TABLE IF NOT EXISTS assignments (
-    topic_id       INTEGER PRIMARY KEY REFERENCES topics(id) ON DELETE CASCADE,
+    group_id       INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    topic_id       INTEGER NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
     teacher_id     INTEGER NOT NULL REFERENCES teachers(id),
-    pairs_per_week INTEGER NOT NULL
+    pairs_per_week INTEGER NOT NULL,
+    PRIMARY KEY (group_id, topic_id)
 );
 
 CREATE TABLE IF NOT EXISTS lessons (
     id            INTEGER PRIMARY KEY,
+    year_id       INTEGER NOT NULL,
     topic_id      INTEGER,
     discipline_id INTEGER,
-    group_id      TEXT NOT NULL,
+    group_id      INTEGER NOT NULL,
     teacher_id    INTEGER,
     room_id       TEXT,
     kind          TEXT NOT NULL,
@@ -124,11 +136,16 @@ CREATE TABLE IF NOT EXISTS lessons (
     question      TEXT NOT NULL DEFAULT ''
 );
 
+CREATE INDEX IF NOT EXISTS idx_groups_year ON groups(year_id);
 CREATE INDEX IF NOT EXISTS idx_groups_major ON groups(major_id);
+CREATE INDEX IF NOT EXISTS idx_disciplines_year ON disciplines(year_id);
+CREATE INDEX IF NOT EXISTS idx_disciplines_major_course ON disciplines(major_id, course);
 CREATE INDEX IF NOT EXISTS idx_topics_discipline ON topics(discipline_id);
+CREATE INDEX IF NOT EXISTS idx_assignments_topic ON assignments(topic_id);
 CREATE INDEX IF NOT EXISTS idx_absences_teacher ON absences(teacher_id);
-CREATE INDEX IF NOT EXISTS idx_lessons_period ON lessons(period);
+CREATE INDEX IF NOT EXISTS idx_lessons_year_period ON lessons(year_id, period);
 CREATE INDEX IF NOT EXISTS idx_lessons_topic ON lessons(topic_id);
+CREATE INDEX IF NOT EXISTS idx_lessons_group_topic ON lessons(group_id, topic_id);
 """
 
 

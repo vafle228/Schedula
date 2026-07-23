@@ -27,21 +27,24 @@ class DisciplineService(ServiceBase):
         self._topics = topics
         self._lessons = lessons
 
-    def list_all(self) -> list[Discipline]:
-        """Return every discipline."""
-        return self._disciplines.list_all()
+    def list_by_year(self, year_id: int) -> list[Discipline]:
+        """Return the year's disciplines."""
+        return self._disciplines.list_by_year(year_id)
 
     def create(
         self,
         *,
+        year_id: int,
         name: str,
-        group_id: str,
+        major_id: int,
+        course: int,
         period: str,
         topic_specs: Sequence[tuple[str, str, int]],
     ) -> Discipline:
         """Create a discipline and its seed topics (``(kind, name, hours)``)."""
         discipline = Discipline(
-            id=0, name=name, group_id=group_id, period=period, is_new=True, topics=[],
+            id=0, year_id=year_id, name=name, major_id=major_id, course=course,
+            period=period, is_new=True, topics=[],
         )
         self._disciplines.add(discipline)
         for kind, topic_name, hours in topic_specs:

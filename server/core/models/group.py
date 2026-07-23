@@ -7,17 +7,22 @@ from dataclasses import dataclass
 
 @dataclass(slots=True)
 class Group:
-    """A study group.
+    """A study group, scoped to one academic year.
 
-    The identifier doubles as the display name (e.g. ``"ИС-31"``), matching the
-    frontend data schema.
+    Groups carry an integer surrogate id; the display ``name`` (e.g. ``"ИС-31"``)
+    is a plain field. Each year owns its own group rows, so the same name may
+    recur across years with distinct ids — all references go by id.
 
     Attributes:
-        id: Group name / identifier, e.g. ``"ИС-31"``.
+        id: Auto-assigned integer primary key.
+        year_id: Owning academic year.
+        name: Display name, e.g. ``"ИС-31"``.
         major_id: Owning major.
         course: Year of study (1-based).
     """
 
-    id: str
+    id: int
+    year_id: int
+    name: str
     major_id: int
     course: int
