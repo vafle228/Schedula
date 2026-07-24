@@ -9,7 +9,7 @@ from core.repositories.lesson_repository import LessonRepository
 
 _COLUMNS = (
     "id, year_id, topic_id, discipline_id, group_id, teacher_id, room_id, kind, "
-    "period, week, day, slot, sub_by, pin, manual, ni, nt, topic_label, question"
+    "period, week, day, slot, sub_by, manual, ni, nt, topic_label, question, number"
 )
 
 
@@ -28,12 +28,12 @@ def _row_to_lesson(row: sqlite3.Row) -> Lesson:
         day=row["day"],
         slot=row["slot"],
         sub_by=row["sub_by"],
-        pin=bool(row["pin"]),
         manual=bool(row["manual"]),
         ni=row["ni"],
         nt=row["nt"],
         topic_label=row["topic_label"],
         question=row["question"],
+        number=row["number"],
     )
 
 
@@ -51,12 +51,12 @@ def _params(lesson: Lesson) -> dict[str, object]:
         "day": lesson.day,
         "slot": lesson.slot,
         "sub_by": lesson.sub_by,
-        "pin": int(lesson.pin),
         "manual": int(lesson.manual),
         "ni": lesson.ni,
         "nt": lesson.nt,
         "topic_label": lesson.topic_label,
         "question": lesson.question,
+        "number": lesson.number,
     }
 
 
@@ -114,10 +114,10 @@ class LessonRepositorySqlLite(LessonRepository):
             """
             INSERT INTO lessons (year_id, topic_id, discipline_id, group_id, teacher_id,
                     room_id, kind, period, week, day, slot, sub_by,
-                    pin, manual, ni, nt, topic_label, question)
+                    manual, ni, nt, topic_label, question, number)
             VALUES (:year_id, :topic_id, :discipline_id, :group_id, :teacher_id,
                     :room_id, :kind, :period, :week, :day, :slot, :sub_by,
-                    :pin, :manual, :ni, :nt, :topic_label, :question)
+                    :manual, :ni, :nt, :topic_label, :question, :number)
             """,
             p,
         )
@@ -132,8 +132,9 @@ class LessonRepositorySqlLite(LessonRepository):
                 topic_id = :topic_id, discipline_id = :discipline_id,
                 group_id = :group_id, teacher_id = :teacher_id, room_id = :room_id,
                 kind = :kind, period = :period, week = :week, day = :day,
-                slot = :slot, sub_by = :sub_by, pin = :pin, manual = :manual,
-                ni = :ni, nt = :nt, topic_label = :topic_label, question = :question
+                slot = :slot, sub_by = :sub_by, manual = :manual,
+                ni = :ni, nt = :nt, topic_label = :topic_label, question = :question,
+                number = :number
             WHERE id = :id
             """,
             {**_params(lesson), "id": lesson.id},

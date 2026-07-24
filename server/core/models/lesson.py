@@ -29,7 +29,6 @@ class Lesson:
         day: 0-based day index (0 = Monday), or ``None``.
         slot: 0-based slot index, or ``None``.
         sub_by: Substitute teacher id for this occurrence, or ``None``.
-        pin: Whether the placement is pinned against regeneration.
         manual: ``True`` for hand-made lessons, ``False`` for auto ones.
         ni: 1-based ordinal of this pair within its topic.
         nt: Total pairs of the topic.
@@ -50,9 +49,9 @@ class Lesson:
     day: int | None = None
     slot: int | None = None
     sub_by: int | None = None
-    pin: bool = False
     manual: bool = True
     ni: int = 1
     nt: int = 1
     topic_label: str = ""
     question: str = ""
+    number: int | None = None

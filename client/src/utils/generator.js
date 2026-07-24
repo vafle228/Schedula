@@ -2,12 +2,12 @@ import { slotStatus } from './conflicts.js'
 
 /**
  * Draft schedule generator (greedy). Operates on enriched lessons
- * ({ id, g, disc, t, room, kind, w, d, s, subBy, pin, orphan }) and returns new
+ * ({ id, g, disc, t, room, kind, w, d, s, subBy, orphan }) and returns new
  * placements ({ id, w, d, s }) without touching the input. Занятия
  * распределяются по неделям семестра: для каждой пары ищется самый ранний
  * свободный слот (неделя → день → слот), праздники и узкие слоты пропускаются.
  *
- * mode 'rebuild' — unplace everything except pinned/orphaned, then fill;
+ * mode 'rebuild' — unplace everything except orphaned, then fill;
  * mode 'fill'    — keep placed lessons, only place the pool.
  */
 export function computeGeneration(enriched, teachers, cfg, mode) {
@@ -19,7 +19,7 @@ export function computeGeneration(enriched, teachers, cfg, mode) {
   let moved = 0
   if (mode === 'rebuild') {
     lessons.forEach((l) => {
-      if (l.d != null && !l.pin && !l.orphan) { l.w = null; l.d = null; l.s = null; moved++ }
+      if (l.d != null && !l.orphan) { l.w = null; l.d = null; l.s = null; moved++ }
     })
   }
   const todo = lessons

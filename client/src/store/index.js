@@ -80,7 +80,6 @@ const enriched = computed(() => {
       d: l.day,
       s: l.slot,
       subBy: l.subBy || null,
-      pin: l.pin,
       manual: l.manual,
       ni: l.ni,
       nt: l.nt,
@@ -88,6 +87,7 @@ const enriched = computed(() => {
       // name so the schedule reads sensibly without hand-editing every card.
       topic: l.topicLabel || topicName[l.topicId] || '',
       question: l.question,
+      number: l.number ?? null,
       orphan: !(state.assignments[l.groupId] && state.assignments[l.groupId][l.topicId]),
     }))
 })
@@ -210,7 +210,7 @@ async function applyLessonsTarget(target) {
     const cur = curById[l.id]
     if (!cur) calls.push(api.createLesson({ ...l, manual: !!l.manual }))
     else if (JSON.stringify(cur) !== JSON.stringify(l)) {
-      calls.push(api.patchLesson(l.id, { day: l.day, slot: l.slot, roomId: l.roomId, kind: l.kind, pin: l.pin, topicLabel: l.topicLabel, question: l.question }))
+      calls.push(api.patchLesson(l.id, { day: l.day, slot: l.slot, roomId: l.roomId, kind: l.kind, topicLabel: l.topicLabel, question: l.question }))
     }
   }
   await Promise.all(calls)
@@ -397,7 +397,7 @@ export const store = {
   async unplaceLessons(ids) {
     if (!ids.length) return
     schedSnapshot()
-    const res = await Promise.all(ids.map((id) => api.patchLesson(id, { week: null, day: null, slot: null, subBy: null, pin: false })))
+    const res = await Promise.all(ids.map((id) => api.patchLesson(id, { week: null, day: null, slot: null, subBy: null })))
     res.forEach(upsertLesson)
   },
 
@@ -406,14 +406,6 @@ export const store = {
     schedSnapshot()
     const l = await api.patchLesson(id, { subBy: subBy || null })
     upsertLesson(l)
-  },
-
-  async togglePin(ids) {
-    const targets = ids.map(lessonById).filter((l) => l && l.day != null)
-    if (!targets.length) return
-    schedSnapshot()
-    const res = await Promise.all(targets.map((l) => (l.pin ? api.unpinLesson(l.id) : api.pinLesson(l.id))))
-    res.forEach(upsertLesson)
   },
 
   async updateLesson(id, fields) {

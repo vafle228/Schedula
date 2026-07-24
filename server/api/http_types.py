@@ -8,6 +8,7 @@ handlers can import it without creating an import cycle between the
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from api.errors import ApiError
@@ -16,6 +17,25 @@ Params = Mapping[str, str]
 Query = Mapping[str, str]
 Body = dict[str, Any] | None
 Handler = Callable[[Params, Query, Body], Any]
+
+
+@dataclass(frozen=True, slots=True)
+class FileResponse:
+    """A binary download result the transport layer streams verbatim.
+
+    Handlers return this instead of a JSON-serializable value when the endpoint
+    yields a file (e.g. a generated ``.xlsx``); :mod:`main` detects it and emits
+    the bytes with the right ``Content-Type`` / ``Content-Disposition`` headers.
+
+    Attributes:
+        content: Raw file bytes.
+        filename: Suggested download name (may contain non-ASCII characters).
+        content_type: MIME type sent in ``Content-Type``.
+    """
+
+    content: bytes
+    filename: str
+    content_type: str = "application/octet-stream"
 
 
 def query_year_id(query: Query) -> int:

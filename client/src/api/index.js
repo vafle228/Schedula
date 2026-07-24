@@ -1,7 +1,7 @@
 /**
  * Service layer: one function per endpoint of «API — Спецификация ендпоинтов».
  */
-import { request } from './client.js'
+import { request, download } from './client.js'
 
 export const api = {
   /* per-year semester settings (schedule grid) */
@@ -70,9 +70,6 @@ export const api = {
   createLesson: (body) => request('POST', '/lessons', body),
   patchLesson: (id, body) => request('PATCH', `/lessons/${id}`, body),
   deleteLesson: (id) => request('DELETE', `/lessons/${id}`),
-  pinLesson: (id) => request('PUT', `/lessons/${id}/pin`),
-  unpinLesson: (id) => request('DELETE', `/lessons/${id}/pin`),
-
   /* generation */
   getReadiness: (yearId, period) => request('GET', `/schedule/readiness?yearId=${yearId}&period=${period}`),
   startGeneration: (yearId, period, mode) => request('POST', '/schedule/generate', { yearId, period, mode }),
@@ -88,4 +85,5 @@ export const api = {
   exportCurriculum: (yearId, period) => request('POST', '/exports/curriculum', { yearId, period }),
   exportSchedule: (body) => request('POST', '/exports/schedule', body),
   getExport: (id) => request('GET', `/exports/${id}`),
+  downloadExport: (id, fileName) => download(`/exports/${id}/download`, fileName),
 }

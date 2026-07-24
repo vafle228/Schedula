@@ -12,7 +12,7 @@ from core.repositories.lesson_repository import LessonRepository
 
 
 class LessonService(ServiceBase):
-    """List, create, patch, delete and pin scheduled lessons."""
+    """List, create, patch, and delete scheduled lessons."""
 
     def __init__(self, lessons: LessonRepository, topics: TopicRepository) -> None:
         self._lessons = lessons
@@ -41,11 +41,12 @@ class LessonService(ServiceBase):
             room_id=data.get("room_id"), kind=data.get("kind"),
             period=data.get("period"),
             week=data.get("week"), day=data.get("day"), slot=data.get("slot"),
-            sub_by=data.get("sub_by") or None, pin=bool(data.get("pin")),
+            sub_by=data.get("sub_by") or None,
             manual=data.get("manual") is not False,
             ni=data.get("ni") or 1, nt=data.get("nt") or 1,
             topic_label=data.get("topic_label") or "",
             question=data.get("question") or "",
+            number=data.get("number") or None,
         )
         self._lessons.add(lesson)
         return lesson
@@ -60,13 +61,6 @@ class LessonService(ServiceBase):
     def delete(self, lesson_id: int) -> None:
         """Delete a lesson (no-op if it is already gone)."""
         self._lessons.delete(lesson_id)
-
-    def set_pin(self, lesson_id: int, pinned: bool) -> Lesson:
-        """Pin or unpin a lesson so the generator leaves it in place."""
-        lesson = self._get(lesson_id)
-        lesson.pin = pinned
-        self._lessons.update(lesson)
-        return lesson
 
     def _get(self, lesson_id: int) -> Lesson:
         return self._require(self._lessons.get(lesson_id), "Занятие не найдено")

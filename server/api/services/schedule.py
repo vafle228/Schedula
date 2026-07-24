@@ -72,7 +72,6 @@ class ScheduleService(ServiceBase):
                 1 for t in self._teachers.list_all() if t.constraints is None
             ),
             "roomsCount": len(self._rooms.list_all()),
-            "pinnedCount": sum(1 for l in lessons if l.pin and l.day is not None),
         }
 
     def conflicts(self, year_id: int, period: str) -> dict[str, Any]:

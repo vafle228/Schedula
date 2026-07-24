@@ -29,8 +29,8 @@ class EnrichedLesson:
     d: int | None  # day (0 = Monday)
     s: int | None  # slot index
     sub_by: int | None  # substitute teacher id
-    pin: bool
     orphan: bool
+    number: int | None = None
 
 
 def eff_teacher(lesson: EnrichedLesson) -> str | None:

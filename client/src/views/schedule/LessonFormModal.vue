@@ -85,20 +85,18 @@ async function save() {
   const question = f.question.trim()
 
   if (isEdit.value) {
-    const fields = { kind: f.kind, topicLabel: topic, question }
+    const fields = { kind: f.kind, topicLabel: topic, question, number: f.number ? parseInt(f.number) : null }
     if (f.placed) {
       fields.week = parseInt(f.w)
       fields.day = parseInt(f.d)
       fields.slot = parseInt(f.s)
       fields.roomId = f.r
       fields.subBy = isSub.value ? f.teacher : null
-      fields.pin = !!f.pin
     } else {
       fields.week = null
       fields.day = null
       fields.slot = null
       fields.subBy = null
-      fields.pin = false
     }
     const id = f.id
     ui.lf = null
@@ -127,11 +125,11 @@ async function save() {
     day: f.placed ? parseInt(f.d) : null,
     slot: f.placed ? parseInt(f.s) : null,
     subBy: null,
-    pin: false,
     ni: 1,
     nt: 1,
     topicLabel: topic,
     question,
+    number: f.number ? parseInt(f.number) : null,
   }
   ui.lf = null
   if (payload.day != null && ui.view === 'group' && a.groupName !== ui.ent.group) {
@@ -173,8 +171,18 @@ async function del() {
 
     <!-- ===== detail card (editing an existing lesson) ===== -->
     <div v-if="isEdit" class="body">
-      <div class="two">
-        <div class="fld f12">
+      <div class="three">
+        <div class="fld fld--num-sm">
+          <span class="field-label">№</span>
+          <input
+            v-model="lf.number"
+            class="input input--white"
+            type="number"
+            min="1"
+            placeholder="—"
+          >
+        </div>
+        <div class="fld f2">
           <span class="field-label">ТЕМА *</span>
           <input
             v-model="lf.topic"
@@ -184,13 +192,13 @@ async function del() {
             @input="lf.err = ''"
           >
         </div>
-        <div class="fld">
+        <div class="fld f15">
           <span class="field-label">УЧЕБНЫЙ ВОПРОС</span>
           <input
             v-model="lf.question"
             class="input input--white"
             list="lf-q-bank"
-            placeholder="один вопрос на урок…"
+            placeholder="один вопрос…"
           >
         </div>
       </div>
@@ -214,12 +222,6 @@ async function del() {
               <span class="chev">▾</span>
             </div>
           </div>
-          <button
-            class="pin-btn"
-            :class="{ on: lf.pin }"
-            title="Закреплённый урок автогенерация не двигает"
-            @click="lf.pin = !lf.pin"
-          >⌖ {{ lf.pin ? 'Закреплено' : 'Закрепить' }}</button>
         </div>
         <div v-if="isSub" class="sub-note">Замена: занятие на этой неделе проведёт выбранный преподаватель.</div>
         <div class="hint">Перенести урок в другой слот — перетащите его карточку в другую ячейку сетки.</div>
@@ -258,24 +260,34 @@ async function del() {
         </div>
       </div>
 
-      <div class="fld">
-        <span class="field-label">ТЕМА ЗАНЯТИЯ *</span>
-        <input
-          v-model="lf.topic"
-          class="input input--white"
-          placeholder="Напр.: Тема 4. Пределы и непрерывность функции"
-          @input="lf.err = ''"
-        >
-      </div>
-
-      <div class="fld">
-        <span class="field-label">УЧЕБНЫЙ ВОПРОС</span>
-        <textarea
-          v-model="lf.question"
-          class="input input--white qarea"
-          rows="2"
-          placeholder="Вопросы, выносимые на занятие"
-        ></textarea>
+      <div class="three">
+        <div class="fld fld--num-sm">
+          <span class="field-label">№</span>
+          <input
+            v-model="lf.number"
+            class="input input--white"
+            type="number"
+            min="1"
+            placeholder="—"
+          >
+        </div>
+        <div class="fld f2">
+          <span class="field-label">ТЕМА ЗАНЯТИЯ *</span>
+          <input
+            v-model="lf.topic"
+            class="input input--white"
+            placeholder="Напр.: Тема 4. Пределы и непрерывность функции"
+            @input="lf.err = ''"
+          >
+        </div>
+        <div class="fld f15">
+          <span class="field-label">УЧЕБНЫЙ ВОПРОС</span>
+          <input
+            v-model="lf.question"
+            class="input input--white"
+            placeholder="Вопросы, выносимые на занятие"
+          >
+        </div>
       </div>
 
       <div class="fld">
@@ -341,12 +353,6 @@ async function del() {
                 <span class="chev">▾</span>
               </div>
             </div>
-            <button
-              class="pin-btn"
-              :class="{ on: lf.pin }"
-              title="Закреплённый урок автогенерация не двигает"
-              @click="lf.pin = !lf.pin"
-            >⌖ {{ lf.pin ? 'Закреплено' : 'Закрепить' }}</button>
           </div>
           <div v-if="isSub" class="sub-note">Замена: занятие на этой неделе проведёт выбранный преподаватель.</div>
 
@@ -379,9 +385,10 @@ async function del() {
 .hdr-meta { font: 400 11px var(--mono); color: var(--muted); margin-top: 3px; }
 
 /* detail-card rows */
-.two { display: flex; gap: 10px; }
-.two .fld { flex: 1; }
-.two .f12 { flex: 1.2; }
+.three { display: flex; gap: 8px; align-items: flex-start; }
+.three .fld { flex: 1; }
+.three .f2 { flex: 2; }
+.three .f15 { flex: 1.5; }
 .row-end { display: flex; gap: 10px; align-items: flex-end; }
 .row-end .f1 { flex: 1; }
 .row-end .f12 { flex: 1.2; }
@@ -398,7 +405,7 @@ async function del() {
 }
 .asg-name { font-size: 13px; font-weight: 600; flex: 1; }
 .asg-sub { font-size: 11.5px; color: var(--muted); }
-.qarea { resize: vertical; min-height: 44px; }
+.fld--num-sm { flex: none !important; width: 62px; }
 .place-btns { display: flex; gap: 5px; }
 .place-btn { flex: 1; padding: 7px 0; }
 .selects { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 2px; }
@@ -406,18 +413,6 @@ async function del() {
 .sub-row { display: flex; gap: 8px; align-items: flex-end; }
 .sub-teacher { flex: 1; }
 .sub-on { border-color: rgba(176, 124, 31, 0.6); background: rgba(176, 124, 31, 0.07); color: #8A6A28; }
-.pin-btn {
-  flex: none;
-  background: #FFFFFF;
-  color: #3A382F;
-  border: 1px solid rgba(0, 0, 0, 0.18);
-  border-radius: var(--r-md);
-  padding: 8px 12px;
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.pin-btn.on { background: var(--fg); color: #FFFFFF; border-color: var(--fg); }
 .sub-note { font-size: 11px; color: var(--amber); margin-top: -4px; }
 .status { display: flex; gap: 8px; align-items: baseline; border-radius: var(--r-lg); padding: 9px 11px; }
 .st-ico { flex: none; font-size: 12px; }

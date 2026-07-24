@@ -23,3 +23,21 @@ export async function request(method, path, body) {
   if (!res.ok) throw new ApiError(res.status, data && data.error ? data.error.message : res.statusText)
   return data
 }
+
+/** Fetch a binary endpoint and hand the browser a Save-As dialog for it. */
+export async function download(path, filename) {
+  const res = await fetch(BASE + path)
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new ApiError(res.status, data && data.error ? data.error.message : res.statusText)
+  }
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename || 'export.xlsx'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}

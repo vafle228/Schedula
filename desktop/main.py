@@ -5,6 +5,7 @@ from pathlib import Path
 import webview
 from bottle import static_file
 
+from desktop.utils.download import DownloadApi
 from server.main import build_api
 
 api = build_api()
@@ -45,8 +46,6 @@ if __name__ == "__main__":
     window = webview.create_window(
         "Schedula",
         url="http://127.0.0.1:8000/",
-        width=1500,
-        height=800,
-        maximized=False,
-        resizable=False)
+        js_api=DownloadApi,
+        min_size=(1500, 800))
     webview.start(gui="qt")

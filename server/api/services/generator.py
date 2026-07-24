@@ -2,8 +2,8 @@
 
 Greedy: each pending pair takes the earliest free slot (week → day → slot),
 skipping hard/unfit cells and remembering the first soft cell as a fallback.
-Lectures are placed before practicals. Pinned and orphaned lessons are never
-moved.
+Lessons are sorted by number (None last), then lectures before practicals.
+Orphaned lessons are never moved.
 """
 
 from __future__ import annotations
@@ -46,12 +46,12 @@ def compute_generation(
     moved = 0
     if mode == "rebuild":
         for lesson in lessons:
-            if lesson.d is not None and not lesson.pin and not lesson.orphan:
+            if lesson.d is not None and not lesson.orphan:
                 lesson.w = lesson.d = lesson.s = None
                 moved += 1
 
     todo = [l for l in lessons if l.d is None]
-    todo.sort(key=lambda l: 0 if l.kind == "lec" else 1)  # stable: lectures first
+    todo.sort(key=lambda l: (l.number if l.number is not None else float("inf"), 0 if l.kind == "lec" else 1))
 
     new_ids: list[int] = []
     soft_used = 0

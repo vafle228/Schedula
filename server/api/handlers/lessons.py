@@ -13,8 +13,8 @@ _LESSON_FIELDS: Final[dict[str, str]] = {
     "topicId": "topic_id", "disciplineId": "discipline_id",
     "groupId": "group_id", "teacherId": "teacher_id", "roomId": "room_id",
     "kind": "kind", "period": "period", "week": "week", "day": "day", "slot": "slot",
-    "subBy": "sub_by", "pin": "pin", "manual": "manual", "ni": "ni", "nt": "nt",
-    "topicLabel": "topic_label", "question": "question",
+    "subBy": "sub_by", "manual": "manual", "ni": "ni", "nt": "nt",
+    "topicLabel": "topic_label", "question": "question", "number": "number",
 }
 
 
@@ -46,12 +46,6 @@ class LessonHandlers:
     def delete(self, params: Params, query: Query, body: Body) -> None:
         self._service.delete(int(params["id"]))
         return None
-
-    def pin(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
-        return ser.lesson(self._service.set_pin(int(params["id"]), True))
-
-    def unpin(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
-        return ser.lesson(self._service.set_pin(int(params["id"]), False))
 
     @staticmethod
     def _to_attrs(body: dict[str, Any]) -> dict[str, Any]:

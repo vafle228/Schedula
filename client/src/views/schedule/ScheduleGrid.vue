@@ -129,11 +129,11 @@ function buildCard(l, d, s) {
     + (isSub ? ' — замена: ' + effName : '')
     + (issues.length
       ? ' — ' + issues.map((x) => x.text).join('; ')
-      : (l.pin ? ' — закреплена, перегенерация не тронет' : ' — клик: карточка занятия'))
+      : ' — клик: карточка занятия')
   return {
     l, d, s, style, titleColor, subColor, badge, badgeColor,
-    pinMark: l.pin ? ' ⌖' : '',
     sub: who + ', ' + l.room + (ui.view === 'room' ? ', ' + effName : ''),
+    num: l.number ?? null,
     tip,
   }
 }
@@ -198,9 +198,12 @@ function onCardDragStart(card, e) {
             @dragend="ui.dragId = null"
             @click.stop="onCardClick(card)"
           >
-            <div class="card-title" :style="{ color: card.titleColor }">{{ card.l.disc }}{{ card.pinMark }}</div>
+            <div class="card-title" :style="{ color: card.titleColor }">{{ card.l.disc }}</div>
             <div class="card-sub" :style="{ color: card.subColor }">{{ card.sub }}</div>
-            <div v-if="card.badge" class="card-badge" :style="{ color: card.badgeColor }">{{ card.badge }}</div>
+            <div v-if="card.badge || card.num" class="card-footer">
+              <span v-if="card.num" class="card-num mono">#{{ card.num }}</span>
+              <span v-if="card.badge" class="card-badge" :style="{ color: card.badgeColor }">{{ card.badge }}</span>
+            </div>
           </div>
           <span v-if="cell.tag" class="cell-tag" :style="{ color: cell.tagColor }">{{ cell.tag }}</span>
         </div>
@@ -280,9 +283,9 @@ function onCardDragStart(card, e) {
   text-overflow: ellipsis;
 }
 .card-sub { font-size: 10.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card-footer { display: flex; align-items: center; gap: 4px; margin-top: 2px; flex-wrap: wrap; }
+.card-num { font: 500 8px var(--mono); color: var(--muted); background: rgba(0, 0, 0, 0.05); border-radius: 3px; padding: 1px 5px; }
 .card-badge {
-  align-self: flex-start;
-  margin-top: 2px;
   font: 500 8px var(--mono);
   background: rgba(0, 0, 0, 0.05);
   border-radius: 3px;

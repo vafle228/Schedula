@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from urllib.parse import quote
 
 from bottle import Bottle, HTTPResponse, request, response
 
 from api.errors import ApiError
+from api.http_types import FileResponse
 from api.routes import create_dispatcher
 from infrastructure.database.seed import seed as seed_database
 from infrastructure.database.unit_of_work import SqliteUnitOfWork
@@ -45,6 +47,16 @@ def enable_cors() -> None:
 def _json_response(payload: object) -> str:
     response.content_type = "application/json; charset=utf-8"
     return json.dumps(payload, ensure_ascii=False)
+
+
+def _file_response(file: FileResponse) -> bytes:
+    """Emit a binary download with an RFC 5987 (UTF-8) filename header."""
+    response.content_type = file.content_type
+    response.set_header(
+        "Content-Disposition",
+        f"attachment; filename*=UTF-8''{quote(file.filename)}",
+    )
+    return file.content
 
 
 def build_api(uow: SqliteUnitOfWork | None = None) -> Bottle:
@@ -84,6 +96,8 @@ def build_api(uow: SqliteUnitOfWork | None = None) -> Bottle:
             response.status = error.status
             return _json_response({"error": {"message": error.message}})
 
+        if isinstance(result, FileResponse):
+            return _file_response(result)
         if result is None:
             response.status = 204
             return ""

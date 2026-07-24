@@ -1,7 +1,7 @@
 /**
  * Conflict analysis for the schedule module.
  *
- * Works on "enriched" lessons: { id, g, disc, t, room, kind, w, d, s, subBy, pin, orphan }
+ * Works on "enriched" lessons: { id, g, disc, t, room, kind, w, d, s, subBy, orphan }
  * where w/d/s are week number (1-based), day index (0 = Пн) and slot index, or
  * null when the lesson sits in the pool. Conflicts are computed, never stored
  * (see data schema). Two lessons collide only within the same week+day+slot.

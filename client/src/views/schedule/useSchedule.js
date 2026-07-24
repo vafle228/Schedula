@@ -245,6 +245,7 @@ export function openLf(pos, id) {
       kind: L.kind,
       topic: L.topic || '',
       question: L.question || '',
+      number: L.number ?? null,
       placed: L.d != null,
       w: String(L.w != null ? L.w : ui.week),
       d: String(L.d != null ? L.d : dayIdxs.value[0] || 0),
@@ -252,7 +253,6 @@ export function openLf(pos, id) {
       r: L.room,
       teacher: L.subBy || L.t, // effective teacher; ≠ штатный ⇒ замена
       staffTeacher: L.t,
-      pin: !!L.pin,
       err: '',
     }
     ui.sel = []
@@ -271,6 +271,7 @@ export function openLf(pos, id) {
     kind: 'lec',
     topic: '',
     question: '',
+    number: null,
     placed: !!pos,
     w: String(pos ? pos.w || ui.week : ui.week),
     d: String(pos ? pos.d : dayIdxs.value[0] || 0),

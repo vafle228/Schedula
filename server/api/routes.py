@@ -161,6 +161,18 @@ def create_dispatcher(
             )
         ),
     )
-    register_export_routes(router, ExportHandlers(ExportService()))
+    register_export_routes(
+        router,
+        ExportHandlers(
+            ExportService(
+                teachers=uow.teachers,
+                disciplines=uow.disciplines,
+                groups=uow.groups,
+                assignments=uow.assignments,
+                majors=uow.majors,
+                years=uow.years,
+            )
+        ),
+    )
 
     return router.dispatch

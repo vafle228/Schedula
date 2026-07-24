@@ -22,10 +22,16 @@ from infrastructure.database.unit_of_work import SqliteUnitOfWork
 # Factory-default topic types (also the client's DEFAULT_TOPIC_TYPES).
 DEFAULT_TOPIC_TYPES: list[TopicType] = [
     TopicType("lec", "Лекция", "Лек.", "#3B62C4", 2),
+    TopicType("grp", "Групповое занятие", "Гр.зан.", "#2563A8", 2),
     TopicType("prac", "Практика", "Практ.", "#1F8A5B", 2),
     TopicType("lab", "Лабораторная", "Лаб.", "#B45309", 2),
+    TopicType("grpex", "Групповое упражнение", "Гр.упр.", "#0E9488", 2),
     TopicType("sem", "Семинар", "Сем.", "#8A3FFC", 2),
+    TopicType("control", "Контрольная работа", "Контр.", "#9A3412", 2),
+    TopicType("srs", "Руководство СРС", "СРС", "#6B7280", 2),
+    TopicType("train", "Тренировка", "Трен.", "#0369A1", 2),
     TopicType("consult", "Консультация", "Конс.", "#0E7490", 1),
+    TopicType("credit", "Зачёт", "Зач.", "#A16207", 2),
     TopicType("exam", "Экзамен", "Экз.", "#C0392B", 2),
     TopicType("course", "Курсовая", "Курс.", "#7A756C", 2),
 ]
@@ -101,7 +107,7 @@ _SPEC: list[tuple] = [
     ("ИС-31", "Программирование", "lec", "t2", "214", [(4, 3)], 0, {}),
     ("ИС-31", "Физика", "lec", "t3", "118", [(3, 0)], 0, {}),
     ("ИС-31", "История", "lec", "t4", "301", [(1, 1)], 0, {}),
-    ("ИС-31", "БЖД", "lec", "t5", "220", [(2, 1)], 0, {"pin": True}),
+    ("ИС-31", "БЖД", "lec", "t5", "220", [(2, 1)], 0, {}),
     ("ИС-31", "Англ. язык", "prac", "t6", "305", [(4, 1)], 1, {}),
     ("ИС-31", "Базы данных", "prac", "t2", "к.413", [], 2, {}),
     ("ИС-32", "История", "lec", "t4", "301", [(1, 1)], 0, {}),
@@ -284,7 +290,7 @@ def seed(uow: SqliteUnitOfWork) -> None:
                 id=0, year_id=year_id, topic_id=topic.id, discipline_id=discipline.id,
                 group_id=group_id, teacher_id=owner, room_id=room_id, kind=kind,
                 period="fall", week=1, day=day, slot=slot, sub_by=None,
-                pin=bool(opts.get("pin")), manual=False, ni=i + 1, nt=pairs,
+                manual=False, ni=i + 1, nt=pairs,
                 topic_label=label, question=question,
             ))
 
@@ -294,7 +300,7 @@ def seed(uow: SqliteUnitOfWork) -> None:
                     id=0, year_id=year_id, topic_id=topic.id, discipline_id=discipline.id,
                     group_id=group_id, teacher_id=teacher_id, room_id=room_id,
                     kind=kind, period="fall", week=None, day=None, slot=None, sub_by=None,
-                    pin=False, manual=False, ni=len(placed) + i + 1, nt=pairs,
+                    manual=False, ni=len(placed) + i + 1, nt=pairs,
                     topic_label=label, question=question,
                 ))
 

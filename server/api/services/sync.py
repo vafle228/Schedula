@@ -147,7 +147,7 @@ class LessonSyncService(ServiceBase):
                 kind=topic.kind,
                 period=discipline.period,
                 week=None, day=None, slot=None, sub_by=None,
-                pin=False, manual=False, ni=0, nt=target,
+                manual=False, ni=0, nt=target,
                 topic_label="", question="",
             )
             self._lessons.add(lesson)
@@ -177,8 +177,8 @@ class LessonSyncService(ServiceBase):
                 d=lesson.day,
                 s=lesson.slot,
                 sub_by=lesson.sub_by,
-                pin=lesson.pin,
                 orphan=(lesson.group_id, lesson.topic_id) not in assignments,
+                number=lesson.number,
             )
             for lesson in self._lessons.list_by_year_period(year_id, period)
         ]

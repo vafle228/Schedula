@@ -53,19 +53,30 @@ function showWarn() {
   if (p !== 'both') store.setPeriod(p)
 }
 
-let genTimer = null
 async function start() {
   const period = exp.value.period
-  dui.exp = { ...exp.value, step: 'gen' }
-  const { exportId } = await api.exportCurriculum(store.state.yearId, period)
-  const info = await api.getExport(exportId)
-  genTimer = setTimeout(() => {
-    if (dui.exp) dui.exp = { ...dui.exp, step: 'done', fileName: info.fileName }
-  }, 1400)
+  dui.exp = { ...exp.value, step: 'gen', error: '' }
+  try {
+    const { exportId } = await api.exportCurriculum(store.state.yearId, period)
+    const info = await api.getExport(exportId)
+    dui.exp = { ...dui.exp, step: 'done', fileName: info.fileName, exportId, error: '' }
+  } catch (e) {
+    dui.exp = { ...exp.value, step: 'config', error: e && e.message ? e.message : 'Не удалось сформировать файл' }
+    return
+  }
+  download()
+}
+
+async function download() {
+  try {
+    await api.downloadExport(exp.value.exportId, exp.value.fileName)
+    if (exp.value.error) dui.exp = { ...exp.value, error: '' }
+  } catch (e) {
+    dui.exp = { ...exp.value, step: 'done', error: e && e.message ? e.message : 'Не удалось скачать файл' }
+  }
 }
 
 function close() {
-  clearTimeout(genTimer)
   dui.exp = null
 }
 </script>
@@ -85,6 +96,10 @@ function close() {
               @click="exp.period = p.k"
             >{{ p.label }}</button>
           </div>
+        </div>
+        <div v-if="exp.error" class="err-box">
+          <span class="warn-ico">⚠</span>
+          <span class="warn-text">{{ exp.error }}</span>
         </div>
         <div v-if="warnCount > 0" class="warn-box">
           <span class="warn-ico">⚠</span>
@@ -133,10 +148,11 @@ function close() {
     <template v-else>
       <div class="center done">
         <span class="ok-circle">✓</span>
-        <span class="done-title">Файл сохранён</span>
+        <span class="done-title">Файл сформирован</span>
         <span class="done-file mono">{{ exp.fileName }}</span>
+        <span v-if="exp.error" class="done-err">{{ exp.error }}</span>
         <div class="done-btns">
-          <button class="btn" @click="close">Открыть файл</button>
+          <button class="btn" @click="download">Скачать ещё раз</button>
           <button class="btn-primary" @click="close">Готово</button>
         </div>
       </div>
@@ -160,6 +176,16 @@ function close() {
   border-radius: var(--r-lg);
   padding: 10px 12px;
 }
+.err-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(194, 57, 43, 0.4);
+  background: rgba(194, 57, 43, 0.05);
+  border-radius: var(--r-lg);
+  padding: 10px 12px;
+}
+.done-err { font-size: 12px; color: #C0392B; }
 .warn-ico { color: var(--orange-dark); font-size: 14px; flex: none; }
 .warn-text { font-size: 12.5px; color: #3A382F; flex: 1; }
 .warn-show { font-size: 12px; font-weight: 500; color: var(--blue); cursor: pointer; flex: none; }

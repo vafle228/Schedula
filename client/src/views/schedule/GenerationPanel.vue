@@ -7,10 +7,8 @@ import { ui, enriched } from './useSchedule.js'
 
 const gen = computed(() => ui.gen)
 
-const placedActive = computed(() => enriched.value.filter((l) => l.d != null && !l.pin && !l.orphan).length)
-const pinnedN = computed(() => enriched.value.filter((l) => l.pin && l.d != null).length)
-const unplacedN = computed(() => enriched.value.filter((l) => l.d == null).length)
 const placedN = computed(() => enriched.value.filter((l) => l.d != null).length)
+const unplacedN = computed(() => enriched.value.filter((l) => l.d == null).length)
 const totalN = computed(() => enriched.value.length)
 const noConstraints = computed(() => store.state.teachers.filter((t) => !t.c).length)
 
@@ -34,15 +32,14 @@ const checks = computed(() => {
     ),
     mk(true, 'Справочник аудиторий: ' + store.state.rooms.length + ' аудиторий, типы заданы', 'Открыть', () => { ui.rooms = true }),
     mk(true, 'Нормы пар/нед: авто из часов плана, ручных правок нет'),
-    mk(pinnedN.value === 0, pinnedN.value ? 'Закреплено пар: ' + pinnedN.value + ' — генератор их не тронет' : 'Закреплённых пар нет'),
   ]
 })
 
 const modes = computed(() => [
   {
     k: 'rebuild',
-    title: 'Пересобрать всё, кроме закреплённых',
-    desc: 'Снимет ' + placedActive.value + ' незакреплённых пар и расставит заново вместе с пулом. ' + pinnedN.value + ' закреплённых не изменятся.',
+    title: 'Пересобрать всё расписание',
+    desc: 'Снимет ' + placedN.value + ' пар и расставит заново вместе с пулом. Результат можно откатить одним шагом.',
   },
   {
     k: 'fill',
@@ -156,9 +153,9 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
-          <div v-if="gen.mode === 'rebuild' && placedActive > 0" class="note-danger">
+          <div v-if="gen.mode === 'rebuild' && placedN > 0" class="note-danger">
             <span style="color: #C24536; flex: none">⚠</span>
-            <span>Будет переставлено {{ placedActive }} незакреплённых пар; {{ pinnedN }} закреплённых не изменятся. Результат можно откатить одним шагом.</span>
+            <span>Будет переставлено {{ placedN }} пар. Результат можно откатить одним шагом.</span>
           </div>
         </div>
         <div class="foot">

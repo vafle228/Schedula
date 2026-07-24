@@ -150,10 +150,10 @@ def lesson(l: Lesson) -> dict[str, Any]:
         "day": l.day,
         "slot": l.slot,
         "subBy": l.sub_by,
-        "pin": l.pin,
         "manual": l.manual,
         "ni": l.ni,
         "nt": l.nt,
         "topicLabel": l.topic_label,
         "question": l.question,
+        "number": l.number,
     }

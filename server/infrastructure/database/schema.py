@@ -128,12 +128,12 @@ CREATE TABLE IF NOT EXISTS lessons (
     day           INTEGER,
     slot          INTEGER,
     sub_by        INTEGER,
-    pin           INTEGER NOT NULL DEFAULT 0,
     manual        INTEGER NOT NULL DEFAULT 1,
     ni            INTEGER NOT NULL DEFAULT 1,
     nt            INTEGER NOT NULL DEFAULT 1,
     topic_label   TEXT NOT NULL DEFAULT '',
-    question      TEXT NOT NULL DEFAULT ''
+    question      TEXT NOT NULL DEFAULT '',
+    number        INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_groups_year ON groups(year_id);
@@ -156,4 +156,15 @@ def initialize(connection: sqlite3.Connection) -> None:
         connection: An open connection (see :func:`connection.connect`).
     """
     connection.executescript(SCHEMA)
+    _migrate(connection)
     connection.commit()
+
+
+def _migrate(connection: sqlite3.Connection) -> None:
+    """Apply additive migrations that cannot be expressed as IF NOT EXISTS DDL."""
+    existing = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(lessons)").fetchall()
+    }
+    if "number" not in existing:
+        connection.execute("ALTER TABLE lessons ADD COLUMN number INTEGER")

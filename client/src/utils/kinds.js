@@ -22,10 +22,16 @@ const darken = (hex, f = 0.72) => {
 /** Factory-default topic types (mirrors the backend seed's DEFAULT_TOPIC_TYPES). */
 export const DEFAULT_TOPIC_TYPES = [
   { k: 'lec', label: 'Лекция', short: 'Лек.', color: '#3B62C4', acHours: 2 },
+  { k: 'grp', label: 'Групповое занятие', short: 'Гр.зан.', color: '#2563A8', acHours: 2 },
   { k: 'prac', label: 'Практика', short: 'Практ.', color: '#1F8A5B', acHours: 2 },
   { k: 'lab', label: 'Лабораторная', short: 'Лаб.', color: '#B45309', acHours: 2 },
+  { k: 'grpex', label: 'Групповое упражнение', short: 'Гр.упр.', color: '#0E9488', acHours: 2 },
   { k: 'sem', label: 'Семинар', short: 'Сем.', color: '#8A3FFC', acHours: 2 },
+  { k: 'control', label: 'Контрольная работа', short: 'Контр.', color: '#9A3412', acHours: 2 },
+  { k: 'srs', label: 'Руководство СРС', short: 'СРС', color: '#6B7280', acHours: 2 },
+  { k: 'train', label: 'Тренировка', short: 'Трен.', color: '#0369A1', acHours: 2 },
   { k: 'consult', label: 'Консультация', short: 'Конс.', color: '#0E7490', acHours: 1 },
+  { k: 'credit', label: 'Зачёт', short: 'Зач.', color: '#A16207', acHours: 2 },
   { k: 'exam', label: 'Экзамен', short: 'Экз.', color: '#C0392B', acHours: 2 },
   { k: 'course', label: 'Курсовая', short: 'Курс.', color: '#7A756C', acHours: 2 },
 ]

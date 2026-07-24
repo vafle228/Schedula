@@ -38,6 +38,7 @@ async function submitAdd(b) {
   const unitTopic = asg.topics.find((tp) => tp.kind === b.addKind) || asg.topics[0]
   if (store.planRemaining(asg.groupId, unitTopic.id) <= 0) return // план исчерпан
   adding.value = null
+  const maxNum = b.lessons.reduce((m, ls) => Math.max(m, ls.l.number ?? 0), 0)
   const created = await store.createManualLesson({
     topicId: unitTopic.id,
     disciplineId: asg.discipline.id,
@@ -47,9 +48,10 @@ async function submitAdd(b) {
     kind: b.addKind,
     period: store.state.period,
     week: null, day: null, slot: null,
-    subBy: null, pin: false, ni: 1, nt: 1,
+    subBy: null, ni: 1, nt: 1,
     topicLabel: topic,
     question: addForm.question.trim(),
+    number: maxNum + 1,
   })
   if (created) ui.flashId = created.id
 }
@@ -107,12 +109,16 @@ const tree = computed(() => {
           addKind: b.kind,
           lessons: b.lessons
             .slice()
-            .sort((a, c) => (a.ni || 0) - (c.ni || 0))
+            .sort((a, c) => {
+              const na = a.number ?? Infinity
+              const nc = c.number ?? Infinity
+              return na !== nc ? na - nc : (a.ni || 0) - (c.ni || 0)
+            })
             .map((l, i) => {
               const placedHere = l.d != null
               return {
                 l,
-                no: 'Занятие ' + (i + 1),
+                no: '#' + (l.number ?? (i + 1)),
                 topic: l.topic || 'тема не указана',
                 question: l.question && l.question !== '—' ? l.question : '',
                 placed: placedHere,
@@ -141,6 +147,20 @@ const placedH = computed(() => {
   })
   return { placed, authored, pct: authored ? Math.round(placed / authored * 100) : 0 }
 })
+
+async function moveLesson(b, idx, dir) {
+  const arr = b.lessons
+  const targetIdx = idx + dir
+  if (targetIdx < 0 || targetIdx >= arr.length) return
+  const a = arr[idx].l
+  const t = arr[targetIdx].l
+  const aNum = a.number ?? (idx + 1)
+  const tNum = t.number ?? (targetIdx + 1)
+  await Promise.all([
+    store.updateLesson(a.id, { number: tNum }),
+    store.updateLesson(t.id, { number: aNum }),
+  ])
+}
 
 function onDragStart(l, e) {
   e.dataTransfer.effectAllowed = 'move'
@@ -222,7 +242,7 @@ function onPoolDrop(e) {
           <template v-if="b.open">
             <div class="lessons">
               <div
-                v-for="ls in b.lessons"
+                v-for="(ls, lsIdx) in b.lessons"
                 :key="ls.l.id"
                 class="lesson"
                 :class="{ placed: ls.placed }"
@@ -238,6 +258,10 @@ function onPoolDrop(e) {
                   <span v-if="ls.sub" class="lesson-tag sub">замена</span>
                   <span v-else-if="ls.placed" class="lesson-tag placed-tag">✓ в сетке</span>
                   <span v-else class="lesson-tag">в пуле</span>
+                  <div class="lesson-ord" @click.stop @mousedown.stop>
+                    <button class="ord-btn" :disabled="lsIdx === 0" @click="moveLesson(b, lsIdx, -1)">▲</button>
+                    <button class="ord-btn" :disabled="lsIdx === b.lessons.length - 1" @click="moveLesson(b, lsIdx, 1)">▼</button>
+                  </div>
                 </div>
                 <div v-if="ls.question" class="lesson-q">{{ ls.question }}</div>
               </div>
@@ -351,6 +375,10 @@ function onPoolDrop(e) {
 .lesson-tag.sub { color: #8A6A28; }
 .lesson-tag.placed-tag { color: #166A45; background: rgba(31, 138, 91, 0.12); }
 .lesson-q { padding-left: 14px; font-size: 10px; color: #5C574E; }
+.lesson-ord { display: flex; flex-direction: column; gap: 1px; flex: none; margin-left: auto; }
+.ord-btn { display: block; background: none; border: none; padding: 1px 4px; font-size: 9px; color: var(--muted); cursor: pointer; line-height: 1.3; opacity: 0.65; border-radius: 3px; transition: opacity 0.1s, background 0.1s; }
+.ord-btn:hover:not(:disabled) { opacity: 1; color: var(--fg); background: rgba(0,0,0,0.07); }
+.ord-btn:disabled { opacity: 0.2; cursor: default; }
 .add-lesson { text-align: left; background: transparent; border: 1px dashed rgba(0, 0, 0, 0.2); border-radius: 6px; padding: 6px 10px; font-size: 11.5px; color: var(--blue); cursor: pointer; }
 .plan-full { text-align: center; border: 1px dashed rgba(31, 138, 91, 0.4); border-radius: 6px; padding: 6px 10px; font: 500 10px var(--mono); color: #166A45; background: rgba(31, 138, 91, 0.05); }
 
