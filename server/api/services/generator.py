@@ -1,9 +1,17 @@
 """Draft schedule generator — a faithful port of the client's ``generator.js``.
 
-Greedy: each pending pair takes the earliest free slot (week → day → slot),
-skipping hard/unfit cells and remembering the first soft cell as a fallback.
-Lessons are sorted by number (None last), then lectures before practicals.
-Orphaned lessons are never moved.
+Greedy: each pending pair takes the earliest free slot, skipping hard/unfit
+cells and remembering the first soft cell as a fallback. Lessons are sorted by
+number (None last), then lectures before practicals. Orphaned lessons are never
+moved.
+
+The scan is **day → week → slot**, mirroring the old PuLP solver's
+``n_lesson_per_day`` constraint: a group fills one weekday completely across the
+whole semester before opening a second weekday, so a group whose load fits a
+single day per week keeps a single study day (stacked over the weeks) instead of
+spilling onto Mon/Tue/Wed of week one. This matters where a group is meant to
+attend on as few distinct weekdays as possible while the school as a whole runs
+several teaching days a week.
 """
 
 from __future__ import annotations
@@ -58,8 +66,8 @@ def compute_generation(
     for lesson in todo:
         soft_best: tuple[int, int, int] | None = None
         placed = False
-        for w in range(1, weeks_n + 1):
-            for d in day_idxs:
+        for d in day_idxs:
+            for w in range(1, weeks_n + 1):
                 for s in range(slots_n):
                     status = slot_status(lesson, w, d, s, None, lessons, teachers, cfg, kind_hours)
                     if status["kind"] in ("hard", "unfit"):

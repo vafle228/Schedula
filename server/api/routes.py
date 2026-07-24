@@ -171,6 +171,9 @@ def create_dispatcher(
                 assignments=uow.assignments,
                 majors=uow.majors,
                 years=uow.years,
+                lessons=uow.lessons,
+                settings=uow.settings,
+                topic_types=uow.topic_types,
             )
         ),
     )
