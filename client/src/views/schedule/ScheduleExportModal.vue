@@ -17,10 +17,16 @@ async function run() {
     period: store.state.period,
     view: ex.value.view,
     scope: ex.value.scope,
+    entity: ex.value.scope === 'cur' ? ui.ent[ex.value.view] : undefined,
     format: 'xlsx',
   })
   const info = await api.getExport(exportId)
-  ui.ex = { ...ex.value, step: 'done', fileName: info.fileName }
+  ui.ex = { ...ex.value, step: 'done', exportId, fileName: info.fileName }
+  await api.downloadExport(exportId, info.fileName)
+}
+
+function redownload() {
+  api.downloadExport(ex.value.exportId, ex.value.fileName)
 }
 </script>
 
@@ -51,9 +57,12 @@ async function run() {
       </div>
       <div v-else class="done">
         <span class="ok-circle">✓</span>
-        <span class="done-title">Файл сформирован (мок)</span>
+        <span class="done-title">Файл сформирован</span>
         <span class="done-file">{{ ex.fileName }}</span>
-        <button class="btn" @click="ui.ex = null">Закрыть</button>
+        <div class="row-btns">
+          <button class="btn" @click="redownload">Скачать ещё раз</button>
+          <button class="btn-primary" @click="ui.ex = null">Готово</button>
+        </div>
       </div>
       <template v-if="ex.step === 'config'" #footer>
         <button class="btn btn-lg" @click="ui.ex = null">Отмена</button>

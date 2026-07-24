@@ -20,7 +20,13 @@ class ExportHandlers:
 
     def schedule(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
-        return self._service.schedule(body.get("view"), body.get("period"))
+        return self._service.schedule(
+            year_id=int(body["yearId"]),
+            period=body["period"],
+            view=body.get("view", "group"),
+            scope=body.get("scope", "all"),
+            entity=body.get("entity"),
+        )
 
     def get(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         return self._service.get(params["id"])
