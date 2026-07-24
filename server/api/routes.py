@@ -113,7 +113,7 @@ def create_dispatcher(
     )
     register_group_routes(
         router,
-        GroupHandlers(GroupService(uow.groups, uow.majors, uow.lessons)),
+        GroupHandlers(GroupService(uow.groups, uow.majors, uow.lessons, uow.teachers)),
     )
     register_discipline_routes(
         router,

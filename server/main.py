@@ -8,6 +8,8 @@ expects once ``USE_MOCK`` is switched off.
 from __future__ import annotations
 
 import json
+import shutil
+import sys
 from pathlib import Path
 from urllib.parse import quote
 
@@ -28,8 +30,24 @@ CORS_HEADERS = {
 }
 
 API_PREFIX = "/api/v1"
-DB_PATH = Path(__file__).resolve().parent / "schedula.db"
 _HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+
+
+def _resolve_db_path() -> Path:
+    if not hasattr(sys, "_MEIPASS"):
+        return Path(__file__).resolve().parent / "schedula.db"
+    # Frozen: DB must live next to the .exe (writable). Copy the bundled
+    # template on first launch so the app starts with a seeded database.
+    exe_dir = Path(sys.executable).parent
+    db = exe_dir / "schedula.db"
+    if not db.exists():
+        template = Path(sys._MEIPASS) / "db_template" / "schedula.db"
+        if template.exists():
+            shutil.copy2(template, db)
+    return db
+
+
+DB_PATH = _resolve_db_path()
 
 
 def handle_options() -> None:

@@ -3,7 +3,7 @@
  * grid, pool panel and modals share it without prop drilling; survives
  * navigation between sections.
  */
-import { reactive, computed } from 'vue'
+import { reactive, computed, watch } from 'vue'
 import { store } from '../../store/index.js'
 import { slotStatus, isHoliday } from '../../utils/conflicts.js'
 import { ALL_DAYS, kindHours } from '../../utils/kinds.js'
@@ -152,6 +152,14 @@ export const entOptions = computed(() => {
   })
   return entList().map((o) => (probEnt[ui.view][o.v] ? { v: o.v, label: o.label + '  ⚠' } : o))
 })
+
+// Auto-correct the selected entity when the list changes (year switch, view switch)
+// so the selector never shows empty.
+watch(entOptions, (opts) => {
+  if (opts.length && !opts.some((o) => o.v === entVal.value)) {
+    entVal.value = opts[0].v
+  }
+}, { immediate: true })
 
 /* ---------- placement ---------- */
 

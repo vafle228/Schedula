@@ -26,3 +26,4 @@ class Group:
     name: str
     major_id: int
     course: int
+    leader_id: int | None = None

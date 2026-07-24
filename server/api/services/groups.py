@@ -11,6 +11,7 @@ from core.models.group import Group
 from core.repositories.group_repository import GroupRepository
 from core.repositories.lesson_repository import LessonRepository
 from core.repositories.major_repository import MajorRepository
+from core.repositories.teacher_repository import TeacherRepository
 
 
 class GroupService(ServiceBase):
@@ -21,10 +22,12 @@ class GroupService(ServiceBase):
         groups: GroupRepository,
         majors: MajorRepository,
         lessons: LessonRepository,
+        teachers: TeacherRepository,
     ) -> None:
         self._groups = groups
         self._majors = majors
         self._lessons = lessons
+        self._teachers = teachers
 
     def list_by_year(self, year_id: int) -> list[Group]:
         """Return the year's groups."""
@@ -34,24 +37,42 @@ class GroupService(ServiceBase):
         """Return the year's groups of a single specialty."""
         return self._groups.list_by_year_major(year_id, major_id)
 
-    def create(self, year_id: int, major_id: int, name: str, course: int) -> Group:
+    def create(
+        self,
+        year_id: int,
+        major_id: int,
+        name: str,
+        course: int,
+        leader_id: int | None = None,
+    ) -> Group:
         """Create a group under ``major_id`` in ``year_id``.
 
         Raises:
-            ApiError: ``404`` when the major is missing, ``409`` on a name clash
-                within the same year.
+            ApiError: ``404`` when the major or leader teacher is missing,
+                ``409`` on a name clash within the same year.
         """
         self._require(self._majors.get(major_id), "Специальность не найдена")
+        if leader_id is not None:
+            self._require(self._teachers.get(leader_id), "Преподаватель не найден")
         existing = self._groups.list_by_year(year_id)
         if any(g.name.lower() == name.lower() for g in existing):
             raise ApiError(409, "Имя группы занято")
-        group = Group(id=0, year_id=year_id, name=name, major_id=major_id, course=course)
+        group = Group(
+            id=0,
+            year_id=year_id,
+            name=name,
+            major_id=major_id,
+            course=course,
+            leader_id=leader_id,
+        )
         self._groups.add(group)
         return group
 
     def patch(self, group_id: int, changes: Mapping[str, Any]) -> Group:
         """Apply ``changes`` to an existing group."""
         group = self._require(self._groups.get(group_id), "Группа не найдена")
+        if "leader_id" in changes and changes["leader_id"] is not None:
+            self._require(self._teachers.get(changes["leader_id"]), "Преподаватель не найден")
         self._apply(group, changes)
         self._groups.update(group)
         return group

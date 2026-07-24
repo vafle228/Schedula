@@ -103,7 +103,13 @@ def major(m: Major, groups_count: int | None = None) -> dict[str, Any]:
 
 
 def group(g: Group) -> dict[str, Any]:
-    return {"id": g.id, "name": g.name, "majorId": g.major_id, "course": g.course}
+    return {
+        "id": g.id,
+        "name": g.name,
+        "majorId": g.major_id,
+        "course": g.course,
+        "leaderId": g.leader_id,
+    }
 
 
 def topic(t: Topic) -> dict[str, Any]:

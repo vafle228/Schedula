@@ -81,11 +81,12 @@ CREATE TABLE IF NOT EXISTS majors (
 );
 
 CREATE TABLE IF NOT EXISTS groups (
-    id       INTEGER PRIMARY KEY,
-    year_id  INTEGER NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
-    name     TEXT NOT NULL,       -- e.g. "ИС-31" (unique within a year, not globally)
-    major_id INTEGER NOT NULL REFERENCES majors(id),
-    course   INTEGER NOT NULL
+    id        INTEGER PRIMARY KEY,
+    year_id   INTEGER NOT NULL REFERENCES academic_years(id) ON DELETE CASCADE,
+    name      TEXT NOT NULL,       -- e.g. "ИС-31" (unique within a year, not globally)
+    major_id  INTEGER NOT NULL REFERENCES majors(id),
+    course    INTEGER NOT NULL,
+    leader_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS disciplines (
@@ -168,3 +169,11 @@ def _migrate(connection: sqlite3.Connection) -> None:
     }
     if "number" not in existing:
         connection.execute("ALTER TABLE lessons ADD COLUMN number INTEGER")
+    group_cols = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(groups)").fetchall()
+    }
+    if "leader_id" not in group_cols:
+        connection.execute(
+            "ALTER TABLE groups ADD COLUMN leader_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL"
+        )

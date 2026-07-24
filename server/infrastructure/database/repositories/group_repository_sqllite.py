@@ -15,6 +15,7 @@ def _row_to_group(row: sqlite3.Row) -> Group:
         name=row["name"],
         major_id=row["major_id"],
         course=row["course"],
+        leader_id=row["leader_id"],
     )
 
 
@@ -49,8 +50,8 @@ class GroupRepositorySqlLite(GroupRepository):
 
     def add(self, group: Group) -> int:
         cursor = self._conn.execute(
-            "INSERT INTO groups (year_id, name, major_id, course) VALUES (?, ?, ?, ?)",
-            (group.year_id, group.name, group.major_id, group.course),
+            "INSERT INTO groups (year_id, name, major_id, course, leader_id) VALUES (?, ?, ?, ?, ?)",
+            (group.year_id, group.name, group.major_id, group.course, group.leader_id),
         )
         self._conn.commit()
         group.id = cursor.lastrowid
@@ -58,8 +59,8 @@ class GroupRepositorySqlLite(GroupRepository):
 
     def update(self, group: Group) -> None:
         self._conn.execute(
-            "UPDATE groups SET name = ?, major_id = ?, course = ? WHERE id = ?",
-            (group.name, group.major_id, group.course, group.id),
+            "UPDATE groups SET name = ?, major_id = ?, course = ?, leader_id = ? WHERE id = ?",
+            (group.name, group.major_id, group.course, group.leader_id, group.id),
         )
         self._conn.commit()
 

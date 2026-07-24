@@ -145,6 +145,7 @@ def _entities(
             chosen = [t for t in teachers if str(t.id) == str(entity)]
         return [_Entity(key=t.id, caption=t.name) for t in chosen]
 
+    teacher_by_id = {t.id: t for t in teachers}
     chosen_groups = sorted(groups, key=lambda g: (g.course, g.name))
     if entity is not None:
         chosen_groups = [g for g in chosen_groups if g.name == entity]
@@ -152,7 +153,9 @@ def _entities(
     for group in chosen_groups:
         major = majors.get(group.major_id)
         code = f"\n\n{major.code}" if major else ""
-        caption = f"Группа {group.name}{code}\n\nОтветственный\nпреподаватель"
+        leader = teacher_by_id.get(group.leader_id) if group.leader_id else None
+        leader_line = f"\n{leader.name}" if leader else ""
+        caption = f"Группа {group.name}{code}\n\nОтветственный\nпреподаватель{leader_line}"
         result.append(_Entity(key=group.id, caption=caption))
     return result
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import io
 import re
+import sys
 from collections.abc import Iterable, Iterator, Mapping
 from copy import copy
 from dataclasses import dataclass, field
@@ -29,7 +30,13 @@ from core.models.group import Group
 from core.models.major import Major
 from core.models.teacher import Teacher
 
-_TEMPLATE_PATH = Path(__file__).parent / "templates" / "curriculum_template.xlsx"
+def _resolve_template_path() -> Path:
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / "server_templates" / "curriculum_template.xlsx"
+    return Path(__file__).parent / "templates" / "curriculum_template.xlsx"
+
+
+_TEMPLATE_PATH = _resolve_template_path()
 _SHEET_NAME = "Лист1"
 
 # First column of each semester block; the two blocks are column-aligned so a

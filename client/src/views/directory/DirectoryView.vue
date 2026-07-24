@@ -303,7 +303,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             <div v-if="ui.gf.err" class="form-err"><span>⚠</span><span>{{ ui.gf.err }}</span></div>
             <div class="grp-table">
               <div class="grp-thead mono">
-                <span>ГРУППА</span><span>КУРС</span><span>ИСПОЛЬЗОВАНИЕ</span><span></span>
+                <span>ГРУППА</span><span>КУРС</span><span>КУРАТОР</span><span>ИСПОЛЬЗОВАНИЕ</span><span></span>
               </div>
               <div v-for="row in grpRows" :key="row.g.id" class="grp-row">
                 <span class="grp-name">{{ row.g.name }}</span>
@@ -314,6 +314,17 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                     @change="store.patchGroup(row.g.id, { course: parseInt($event.target.value, 10) })"
                   >
                     <option v-for="o in courseOpts" :key="o.v" :value="o.v">{{ o.label }}</option>
+                  </select>
+                  <span class="chev">▾</span>
+                </div>
+                <div class="select-wrap">
+                  <select
+                    :value="String(row.g.leaderId ?? '')"
+                    style="padding: 5px 24px 5px 9px; font-size: 12px; border-radius: 6px"
+                    @change="store.patchGroup(row.g.id, { leaderId: $event.target.value ? parseInt($event.target.value, 10) : null })"
+                  >
+                    <option value="">— не назначен</option>
+                    <option v-for="t in store.state.teachers" :key="t.id" :value="String(t.id)">{{ t.name }}</option>
                   </select>
                   <span class="chev">▾</span>
                 </div>
@@ -589,7 +600,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 .grp-table { display: flex; flex-direction: column; }
 .grp-thead, .grp-row {
   display: grid;
-  grid-template-columns: 1fr 110px 160px 30px;
+  grid-template-columns: 1fr 110px 1fr 130px 30px;
   gap: 6px;
   align-items: center;
 }

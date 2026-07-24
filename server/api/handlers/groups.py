@@ -33,11 +33,13 @@ class GroupHandlers:
 
     def create(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
+        leader_id = body.get("leaderId")
         group = self._service.create(
             body_year_id(body),
             int(params["id"]),
             name=body.get("name"),
             course=body.get("course"),
+            leader_id=int(leader_id) if leader_id is not None else None,
         )
         return ser.group(group)
 
@@ -50,6 +52,9 @@ class GroupHandlers:
             changes["course"] = body["course"]
         if body.get("majorId") is not None:
             changes["major_id"] = int(body["majorId"])
+        if "leaderId" in body:
+            raw = body["leaderId"]
+            changes["leader_id"] = int(raw) if raw is not None else None
         return ser.group(self._service.patch(int(params["id"]), changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:

@@ -18,6 +18,7 @@ DESKTOP_STATIC = os.path.join(DESKTOP, "static")
 DB_TEMPLATE = os.path.join(SERVER, "schedula.db")
 ENV_FILE = os.path.join(ROOT, ".env")
 ICON = os.path.join(DESKTOP_STATIC, "icon.ico")  # оставьте, если есть иконка окна/exe
+SERVER_TEMPLATES = os.path.join(SERVER, "api", "services", "templates")
 
 # ---------------------------------------------------------------------------
 # Делаем пакеты импортируемыми ДЛЯ АНАЛИЗАТОРА PyInstaller, чтобы
@@ -60,9 +61,9 @@ hiddenimports = sorted(set(hiddenimports))
 # ---------------------------------------------------------------------------
 datas = list(_wv_datas)
 
-# Vue SPA -> префикс 'web'
+# Vue SPA -> 'client/dist' (mirrors resource_path() in desktop/main.py)
 if os.path.isdir(CLIENT_DIST):
-    datas.append((CLIENT_DIST, "web"))
+    datas.append((CLIENT_DIST, os.path.join("client", "dist")))
 else:
     raise SystemExit(f"[spec] Не найдена сборка Vue: {CLIENT_DIST}. "
                      f"Сначала выполните `npm run build` в client/.")
@@ -74,6 +75,10 @@ if os.path.isdir(DESKTOP_STATIC):
 # Шаблон БД -> 'db_template/schedula.db'
 if os.path.isfile(DB_TEMPLATE):
     datas.append((DB_TEMPLATE, "db_template"))
+
+# Excel-шаблоны сервера -> 'server_templates'
+if os.path.isdir(SERVER_TEMPLATES):
+    datas.append((SERVER_TEMPLATES, "server_templates"))
 
 # .env опционально (если сервер читает его через python-dotenv из cwd/ресурса)
 if os.path.isfile(ENV_FILE):
