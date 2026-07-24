@@ -16,16 +16,13 @@ def resource_path(relative: str) -> str:
         return str(Path(sys._MEIPASS).joinpath(relative))
     return str(Path(__file__).resolve().parent.parent.joinpath(relative))
 
-
 @api.get("/")
 def enter_point():
     return static_file("index.html", root=resource_path("client/dist"))
 
-
 @api.get("/assets/<filepath:path>")
 def assets(filepath: str):
     return static_file(filepath, root=resource_path("client/dist/assets"))
-
 
 @api.get("/<filepath:path>")
 def spa_fallback(filepath: str):
@@ -41,11 +38,14 @@ if __name__ == "__main__":
             "quiet": True
         }
     )
-
     server_thread.start()
+
+    js_api = DownloadApi()
     window = webview.create_window(
         "Schedula",
         url="http://127.0.0.1:8000/",
-        js_api=DownloadApi,
+        js_api=js_api,
         min_size=(1500, 800))
+    js_api.window = window
+
     webview.start(gui="qt")

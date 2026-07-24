@@ -24,8 +24,15 @@ export async function request(method, path, body) {
   return data
 }
 
-/** Fetch a binary endpoint and hand the browser a Save-As dialog for it. */
+/** Fetch a binary endpoint and hand the user a Save-As dialog for it. */
 export async function download(path, filename) {
+  if (window.pywebview) {
+    const fullUrl = 'http://127.0.0.1:8000' + BASE + path
+    const result = await window.pywebview.api.initiate_download(fullUrl, filename || 'export.xlsx')
+    if (result && result.status === 'error') throw new ApiError(0, result.message)
+    return
+  }
+
   const res = await fetch(BASE + path)
   if (!res.ok) {
     const data = await res.json().catch(() => null)
