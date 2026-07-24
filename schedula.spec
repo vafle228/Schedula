@@ -104,6 +104,7 @@ a = Analysis(
         "tkinter", "unittest", "pytest",
         # GUI-бэкенды pywebview, которые точно не используем на Windows:
         "PyQt5", "PyQt6", "PySide2", "PySide6", "gi", "gtk",
+        "webview.platforms.qt", "qtpy",
     ],
     noarchive=False,
 )
