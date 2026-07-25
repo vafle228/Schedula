@@ -5,6 +5,7 @@ import { api } from '../../api/index.js'
 import { toMin, toStr, slotEnd, slotLen } from '../../utils/slots.js'
 import { confirmDelete } from '../../composables/useConfirm.js'
 import ModalWindow from '../../components/ModalWindow.vue'
+import HolidaysPanel from './HolidaysPanel.vue'
 
 const activeId = computed(() => store.state.period)
 // the year the whole app (and these settings) is currently scoped to
@@ -396,6 +397,9 @@ async function save() {
             <span>· <b>учёт часов</b> — «разложено / заведено / план» в содержании курсов</span>
           </div>
         </div>
+
+        <!-- ===== holidays / days off ===== -->
+        <HolidaysPanel />
 
         <!-- ===== bells / slots ===== -->
         <div class="panel sect">

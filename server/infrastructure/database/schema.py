@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS settings (
     slots_per_day INTEGER NOT NULL,
     weeks_count   INTEGER NOT NULL,
     holidays      TEXT NOT NULL,   -- JSON: ["w-d", ...]
+    holiday_source TEXT NOT NULL DEFAULT 'api',  -- 'api' | 'manual'
     PRIMARY KEY (year_id, period)
 );
 
@@ -181,4 +182,13 @@ def _migrate(connection: sqlite3.Connection) -> None:
     if "study_days" not in group_cols:
         connection.execute(
             "ALTER TABLE groups ADD COLUMN study_days TEXT NOT NULL DEFAULT '[]'"
+        )
+    settings_cols = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(settings)").fetchall()
+    }
+    if "holiday_source" not in settings_cols:
+        # Pre-existing rows carry hand-set demo holidays — treat them as manual.
+        connection.execute(
+            "ALTER TABLE settings ADD COLUMN holiday_source TEXT NOT NULL DEFAULT 'manual'"
         )

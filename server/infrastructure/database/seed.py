@@ -50,7 +50,10 @@ def _seed_settings(
     starts = {"fall": year.aut_from, "spring": year.spr_from}
     for period in ("fall", "spring"):
         settings = default_settings(year.id, period, starts[period])
-        settings.holidays = list(holidays.get(period, []))
+        seeded = list(holidays.get(period, []))
+        settings.holidays = seeded
+        # Hand-seeded demo cells are "manual"; empty grids default to calendar sync.
+        settings.holiday_source = "manual" if seeded else "api"
         uow.settings.save(settings)
 
 

@@ -40,6 +40,8 @@ class SemesterSettings:
         slots_per_day: Cached ``len(slots)``.
         weeks_count: Number of teaching weeks in the semester.
         holidays: Non-teaching grid cells as ``"week-day"`` (0-based day).
+        holiday_source: Where ``holidays`` comes from — ``"api"`` (synced from
+            the production calendar) or ``"manual"`` (entered by hand).
     """
 
     year_id: int
@@ -51,6 +53,7 @@ class SemesterSettings:
     slots_per_day: int
     weeks_count: int
     holidays: list[str] = field(default_factory=list)
+    holiday_source: str = "api"
 
 
 # Factory-default grid: 4×2 ac.h + 1×1 ac.h, each carrying its trailing break.
@@ -98,4 +101,5 @@ def default_settings(year_id: int, period: str, ru_start_date: str) -> SemesterS
         slots_per_day=len(_DEFAULT_SLOTS),
         weeks_count=DEFAULT_WEEKS_COUNT,
         holidays=[],
+        holiday_source="api",
     )

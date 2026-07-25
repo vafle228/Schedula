@@ -21,6 +21,7 @@ def _row_to_settings(row: sqlite3.Row) -> SemesterSettings:
         slots_per_day=row["slots_per_day"],
         weeks_count=row["weeks_count"],
         holidays=json.loads(row["holidays"]),
+        holiday_source=row["holiday_source"],
     )
 
 
@@ -50,9 +51,11 @@ class SettingsRepositorySqlLite(SettingsRepository):
         self._conn.execute(
             """
             INSERT INTO settings (year_id, period, start_date, active_days,
-                                  acad_min, slots, slots_per_day, weeks_count, holidays)
+                                  acad_min, slots, slots_per_day, weeks_count,
+                                  holidays, holiday_source)
             VALUES (:year_id, :period, :start_date, :active_days,
-                    :acad_min, :slots, :slots_per_day, :weeks_count, :holidays)
+                    :acad_min, :slots, :slots_per_day, :weeks_count,
+                    :holidays, :holiday_source)
             ON CONFLICT(year_id, period) DO UPDATE SET
                 start_date = excluded.start_date,
                 active_days = excluded.active_days,
@@ -60,7 +63,8 @@ class SettingsRepositorySqlLite(SettingsRepository):
                 slots = excluded.slots,
                 slots_per_day = excluded.slots_per_day,
                 weeks_count = excluded.weeks_count,
-                holidays = excluded.holidays
+                holidays = excluded.holidays,
+                holiday_source = excluded.holiday_source
             """,
             {
                 "year_id": settings.year_id,
@@ -72,6 +76,7 @@ class SettingsRepositorySqlLite(SettingsRepository):
                 "slots_per_day": settings.slots_per_day,
                 "weeks_count": settings.weeks_count,
                 "holidays": json.dumps(settings.holidays),
+                "holiday_source": settings.holiday_source,
             },
         )
         self._conn.commit()
