@@ -12,6 +12,11 @@ single day per week keeps a single study day (stacked over the weeks) instead of
 spilling onto Mon/Tue/Wed of week one. This matters where a group is meant to
 attend on as few distinct weekdays as possible while the school as a whole runs
 several teaching days a week.
+
+A group may additionally pin the weekdays it is allowed to study on
+(``EnrichedLesson.study_days``). When set, its lessons are only ever seated on
+those days (intersected with the period's active days); an empty list means "no
+restriction" and the group uses every teaching day.
 """
 
 from __future__ import annotations
@@ -66,7 +71,13 @@ def compute_generation(
     for lesson in todo:
         soft_best: tuple[int, int, int] | None = None
         placed = False
-        for d in day_idxs:
+        # Restrict to the group's own study days, if it pinned any.
+        lesson_days = (
+            [d for d in day_idxs if d in lesson.study_days]
+            if lesson.study_days
+            else day_idxs
+        )
+        for d in lesson_days:
             for w in range(1, weeks_n + 1):
                 for s in range(slots_n):
                     status = slot_status(lesson, w, d, s, None, lessons, teachers, cfg, kind_hours)

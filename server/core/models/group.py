@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass(slots=True)
@@ -19,6 +19,10 @@ class Group:
         name: Display name, e.g. ``"ИС-31"``.
         major_id: Owning major.
         course: Year of study (1-based).
+        leader_id: Curator teacher id, or ``None``.
+        study_days: 0-based weekday indices (Monday = 0) the group may study on.
+            Empty means "no restriction" — the generator falls back to the
+            period's active days.
     """
 
     id: int
@@ -27,3 +31,4 @@ class Group:
     major_id: int
     course: int
     leader_id: int | None = None
+    study_days: list[int] = field(default_factory=list)

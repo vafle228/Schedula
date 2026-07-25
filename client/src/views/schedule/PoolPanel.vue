@@ -243,9 +243,9 @@ function onPoolDrop(e) {
             <div class="lessons">
               <div
                 v-for="(ls, lsIdx) in b.lessons"
+                v-show="!ls.placed"
                 :key="ls.l.id"
                 class="lesson"
-                :class="{ placed: ls.placed }"
                 :title="ls.placed ? 'разложено: ' + dayLabel(ls.l) + ' — перетащите, чтобы перенести' : 'перетащите на свободный слот сетки'"
                 draggable="true"
                 @dragstart="onDragStart(ls.l, $event)"
@@ -256,7 +256,6 @@ function onPoolDrop(e) {
                   <span class="lesson-no mono">{{ ls.no }}</span>
                   <span class="lesson-topic">{{ ls.topic }}</span>
                   <span v-if="ls.sub" class="lesson-tag sub">замена</span>
-                  <span v-else-if="ls.placed" class="lesson-tag placed-tag">✓ в сетке</span>
                   <span v-else class="lesson-tag">в пуле</span>
                   <div class="lesson-ord" @click.stop @mousedown.stop>
                     <button class="ord-btn" :disabled="lsIdx === 0" @click="moveLesson(b, lsIdx, -1)">▲</button>
@@ -367,13 +366,11 @@ function onPoolDrop(e) {
 
 .lessons { margin: 9px 0 2px 17px; display: flex; flex-direction: column; gap: 5px; }
 .lesson { border: 1px solid rgba(0, 0, 0, 0.09); border-radius: 6px; padding: 6px 8px; background: #FBFAF8; cursor: grab; display: flex; flex-direction: column; gap: 3px; }
-.lesson.placed { background: #FFF; }
 .lesson-top { display: flex; align-items: center; gap: 6px; }
 .lesson-no { font: 400 9.5px var(--mono); color: var(--faint); }
 .lesson-topic { font-size: 11.5px; font-weight: 600; color: #2A4B9E; flex: 1; min-width: 0; line-height: 1.25; }
 .lesson-tag { font: 500 8.5px var(--mono); color: #8A6A28; background: rgba(176, 124, 31, 0.14); border-radius: 3px; padding: 1px 5px; }
 .lesson-tag.sub { color: #8A6A28; }
-.lesson-tag.placed-tag { color: #166A45; background: rgba(31, 138, 91, 0.12); }
 .lesson-q { padding-left: 14px; font-size: 10px; color: #5C574E; }
 .lesson-ord { display: flex; flex-direction: column; gap: 1px; flex: none; margin-left: auto; }
 .ord-btn { display: block; background: none; border: none; padding: 1px 4px; font-size: 9px; color: var(--muted); cursor: pointer; line-height: 1.3; opacity: 0.65; border-radius: 3px; transition: opacity 0.1s, background 0.1s; }

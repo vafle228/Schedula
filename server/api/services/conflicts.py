@@ -8,7 +8,7 @@ Conflicts are always computed, never stored.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from core.models.settings import SemesterSettings
@@ -31,6 +31,7 @@ class EnrichedLesson:
     sub_by: int | None  # substitute teacher id
     orphan: bool
     number: int | None = None
+    study_days: list[int] = field(default_factory=list)  # group's allowed weekdays; [] = all
 
 
 def eff_teacher(lesson: EnrichedLesson) -> str | None:

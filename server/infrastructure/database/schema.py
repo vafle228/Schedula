@@ -86,7 +86,8 @@ CREATE TABLE IF NOT EXISTS groups (
     name      TEXT NOT NULL,       -- e.g. "ИС-31" (unique within a year, not globally)
     major_id  INTEGER NOT NULL REFERENCES majors(id),
     course    INTEGER NOT NULL,
-    leader_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL
+    leader_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL,
+    study_days TEXT NOT NULL DEFAULT '[]'  -- JSON array of 0-based weekday indices; [] = all teaching days
 );
 
 CREATE TABLE IF NOT EXISTS disciplines (
@@ -176,4 +177,8 @@ def _migrate(connection: sqlite3.Connection) -> None:
     if "leader_id" not in group_cols:
         connection.execute(
             "ALTER TABLE groups ADD COLUMN leader_id INTEGER REFERENCES teachers(id) ON DELETE SET NULL"
+        )
+    if "study_days" not in group_cols:
+        connection.execute(
+            "ALTER TABLE groups ADD COLUMN study_days TEXT NOT NULL DEFAULT '[]'"
         )

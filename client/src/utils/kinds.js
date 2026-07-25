@@ -56,6 +56,8 @@ function decorate(d) {
 export const KIND_LIST = reactive([])
 /** Keyed form — for lookup and `(K, k) in KINDS` iteration (used by «Расписание»). */
 export const KINDS = reactive({})
+/** Classroom types — mirrors lesson type labels so they stay in sync. */
+export const ROOM_TYPES = reactive([])
 
 /** Rebuild both catalogue forms in place so existing reactive refs stay valid. */
 export function applyTopicTypes(defs) {
@@ -63,6 +65,7 @@ export function applyTopicTypes(defs) {
   KIND_LIST.splice(0, KIND_LIST.length, ...list)
   Object.keys(KINDS).forEach((k) => { delete KINDS[k] })
   list.forEach((x) => { KINDS[x.k] = x })
+  ROOM_TYPES.splice(0, ROOM_TYPES.length, ...list.map((x) => x.label))
 }
 
 applyTopicTypes(DEFAULT_TOPIC_TYPES) // pre-API defaults so the first render has types
@@ -74,8 +77,6 @@ export const kindShort = (k) => kindOf(k).short
 export const dotRadius = () => '50%'
 /** Academic hours a lesson of this type occupies — drives the slot-fit rule. */
 export const kindHours = (k) => (kindOf(k) ? kindOf(k).acHours : 2)
-
-export const ROOM_TYPES = ['Лекционная', 'Семинарская', 'Комп. класс', 'Лаборатория', 'Спортивный зал', 'Актовый зал']
 
 export const ABSENCE_TYPES = [
   { v: 'vacation', label: 'Отпуск' },

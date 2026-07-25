@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 
 from core.models.group import Group
@@ -9,6 +10,11 @@ from core.repositories.group_repository import GroupRepository
 
 
 def _row_to_group(row: sqlite3.Row) -> Group:
+    raw = row["study_days"] if "study_days" in row.keys() else None
+    try:
+        study_days = [int(d) for d in json.loads(raw)] if raw else []
+    except (ValueError, TypeError):
+        study_days = []
     return Group(
         id=row["id"],
         year_id=row["year_id"],
@@ -16,6 +22,7 @@ def _row_to_group(row: sqlite3.Row) -> Group:
         major_id=row["major_id"],
         course=row["course"],
         leader_id=row["leader_id"],
+        study_days=study_days,
     )
 
 
@@ -50,8 +57,12 @@ class GroupRepositorySqlLite(GroupRepository):
 
     def add(self, group: Group) -> int:
         cursor = self._conn.execute(
-            "INSERT INTO groups (year_id, name, major_id, course, leader_id) VALUES (?, ?, ?, ?, ?)",
-            (group.year_id, group.name, group.major_id, group.course, group.leader_id),
+            "INSERT INTO groups (year_id, name, major_id, course, leader_id, study_days) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                group.year_id, group.name, group.major_id, group.course,
+                group.leader_id, json.dumps(group.study_days),
+            ),
         )
         self._conn.commit()
         group.id = cursor.lastrowid
@@ -59,8 +70,12 @@ class GroupRepositorySqlLite(GroupRepository):
 
     def update(self, group: Group) -> None:
         self._conn.execute(
-            "UPDATE groups SET name = ?, major_id = ?, course = ?, leader_id = ? WHERE id = ?",
-            (group.name, group.major_id, group.course, group.leader_id, group.id),
+            "UPDATE groups SET name = ?, major_id = ?, course = ?, leader_id = ?, "
+            "study_days = ? WHERE id = ?",
+            (
+                group.name, group.major_id, group.course, group.leader_id,
+                json.dumps(group.study_days), group.id,
+            ),
         )
         self._conn.commit()
 

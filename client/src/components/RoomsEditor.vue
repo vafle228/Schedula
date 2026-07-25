@@ -4,7 +4,7 @@ import { store } from '../store/index.js'
 import { ROOM_TYPES } from '../utils/kinds.js'
 import { plural } from '../utils/format.js'
 
-const form = reactive({ id: '', cap: '40', type: ROOM_TYPES[0], err: '' })
+const form = reactive({ id: '', type: ROOM_TYPES[0], err: '' })
 
 const usage = computed(() => {
   const m = {}
@@ -29,8 +29,7 @@ async function add() {
     form.err = 'Аудитория «' + id + '» уже есть в справочнике'
     return
   }
-  const capacity = Math.max(1, parseInt(form.cap, 10) || 1)
-  await store.createRoom({ id, capacity, type: form.type })
+  await store.createRoom({ id, type: form.type })
   form.id = ''
   form.err = ''
 }
@@ -53,14 +52,6 @@ function del(r) {
           @input="form.err = ''"
           @keydown.enter="add"
         >
-        <input
-          v-model="form.cap"
-          class="input input--white cap-input mono"
-          type="number"
-          min="1"
-          placeholder="Мест"
-          title="Вместимость"
-        >
         <div class="select-wrap type-sel">
           <select v-model="form.type">
             <option v-for="t in ROOM_TYPES" :key="t" :value="t">{{ t }}</option>
@@ -74,11 +65,10 @@ function del(r) {
 
     <div class="table">
       <div class="thead">
-        <span>АУДИТОРИЯ</span><span class="right">МЕСТ</span><span>ТИП</span><span>ЗАНЯТОСТЬ</span><span></span>
+        <span>АУДИТОРИЯ</span><span>ТИП</span><span>ЗАНЯТОСТЬ</span><span></span>
       </div>
       <div v-for="r in rows" :key="r.id" class="trow">
         <span class="rid">{{ r.id }}</span>
-        <span class="cap mono right">{{ r.capacity }}</span>
         <span class="rtype">{{ r.type }}</span>
         <span class="rusage" :class="{ free: !r.used }">{{ r.usageLabel }}</span>
         <button
@@ -110,21 +100,18 @@ function del(r) {
 }
 .new-row { display: flex; gap: 8px; align-items: center; }
 .id-input { flex: none; width: 130px; font-size: 12.5px; }
-.cap-input { flex: none; width: 74px; font: 500 12.5px var(--mono); text-align: right; }
 .type-sel { flex: 1; }
 
 .table { flex: 1; overflow-y: auto; padding: 10px 18px 14px; }
 .thead, .trow {
   display: grid;
-  grid-template-columns: 110px 64px 1fr 130px 30px;
+  grid-template-columns: 110px 1fr 130px 30px;
   gap: 6px;
   align-items: center;
 }
 .thead { padding: 4px 0; font: 500 10px var(--mono); letter-spacing: 0.06em; color: var(--faint); }
 .trow { padding: 7px 0; border-top: 1px solid rgba(0, 0, 0, 0.06); }
-.right { text-align: right; }
 .rid { font-size: 12.5px; font-weight: 600; }
-.cap { font-size: 12px; color: var(--sub); }
 .rtype { font-size: 12px; color: var(--sub); }
 .rusage { font-size: 11.5px; color: var(--sub); }
 .rusage.free { color: var(--faint); }

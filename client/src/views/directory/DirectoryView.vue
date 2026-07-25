@@ -3,6 +3,7 @@ import { reactive, computed, onMounted, onUnmounted } from 'vue'
 import { store } from '../../store/index.js'
 import { confirmDelete } from '../../composables/useConfirm.js'
 import { initials, avatarBg, plural } from '../../utils/format.js'
+import { ALL_DAYS } from '../../utils/kinds.js'
 import RoomsEditor from '../../components/RoomsEditor.vue'
 import LessonTypesEditor from '../../components/LessonTypesEditor.vue'
 import AvailabilityEditor from '../../components/AvailabilityEditor.vue'
@@ -76,6 +77,28 @@ const grpRows = computed(() => curMGroups.value.map((g) => {
 }))
 
 const courseOpts = [1, 2, 3, 4].map((c) => ({ v: String(c), label: c + ' курс' }))
+
+/* Weekdays a group may study on — offered as the union of teaching days across
+   both seasons, so the picker matches the school's real working week. */
+const weekDayOpts = computed(() => {
+  const on = [false, false, false, false, false, false, false]
+  Object.values(store.state.periods).forEach((p) => {
+    if (p && Array.isArray(p.activeDays)) p.activeDays.forEach((v, i) => { if (v) on[i] = true })
+  })
+  const idxs = []
+  on.forEach((v, i) => { if (v) idxs.push(i) })
+  return (idxs.length ? idxs : [0, 1, 2, 3, 4]).map((i) => ({ i, label: ALL_DAYS[i] }))
+})
+
+/* Toggle one study day for a group. Empty set = studies on any teaching day. */
+function toggleDay(g, i) {
+  const cur = Array.isArray(g.studyDays) ? g.studyDays.slice() : []
+  const pos = cur.indexOf(i)
+  if (pos >= 0) cur.splice(pos, 1)
+  else cur.push(i)
+  cur.sort((a, b) => a - b)
+  store.patchGroup(g.id, { studyDays: cur })
+}
 
 async function addGroup() {
   const name = ui.gf.name.trim()
@@ -278,7 +301,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             </div>
           </div>
 
-          <div class="sect narrow bordered">
+          <div class="sect bordered">
             <div class="sect-head-row">
               <span class="micro">ГРУППЫ СПЕЦИАЛЬНОСТИ</span>
               <span class="sect-note">создаются здесь — сразу видны в «Распределении» и «Расписании»</span>
@@ -303,7 +326,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             <div v-if="ui.gf.err" class="form-err"><span>⚠</span><span>{{ ui.gf.err }}</span></div>
             <div class="grp-table">
               <div class="grp-thead mono">
-                <span>ГРУППА</span><span>КУРС</span><span>КУРАТОР</span><span>ИСПОЛЬЗОВАНИЕ</span><span></span>
+                <span>ГРУППА</span><span>КУРС</span><span>КУРАТОР</span><span>УЧЕБНЫЕ ДНИ</span><span>ИСПОЛЬЗОВАНИЕ</span><span></span>
               </div>
               <div v-for="row in grpRows" :key="row.g.id" class="grp-row">
                 <span class="grp-name">{{ row.g.name }}</span>
@@ -328,6 +351,16 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   </select>
                   <span class="chev">▾</span>
                 </div>
+                <div class="day-picker" :title="(row.g.studyDays || []).length ? 'Группа учится только в выбранные дни' : 'Дни не выбраны — группа учится в любой день сетки'">
+                  <button
+                    v-for="o in weekDayOpts"
+                    :key="o.i"
+                    type="button"
+                    class="day-chip"
+                    :class="{ on: (row.g.studyDays || []).includes(o.i) }"
+                    @click="toggleDay(row.g, o.i)"
+                  >{{ o.label }}</button>
+                </div>
                 <span class="grp-usage" :class="{ free: !row.used }">{{ row.usage }}</span>
                 <button
                   class="grp-del"
@@ -346,6 +379,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             <span class="foot-note">
               Группа удаляется, только если на ней нет занятий. Специальность — только без групп.
               Селекты групп в пуле и расписании читают этот справочник.
+              Учебные дни ограничивают генератор: пусто — группа может учиться в любой день сетки.
             </span>
             <span
               class="maj-del"
@@ -600,10 +634,24 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 .grp-table { display: flex; flex-direction: column; }
 .grp-thead, .grp-row {
   display: grid;
-  grid-template-columns: 1fr 110px 1fr 130px 30px;
-  gap: 6px;
+  grid-template-columns: minmax(110px, 1fr) 100px minmax(130px, 1fr) auto 120px 28px;
+  gap: 8px;
   align-items: center;
 }
+.day-picker { display: flex; gap: 3px; flex-wrap: wrap; }
+.day-chip {
+  border: 1px solid var(--line-soft);
+  background: var(--panel);
+  color: var(--sub);
+  font: 500 10.5px var(--mono);
+  padding: 3px 6px;
+  border-radius: 5px;
+  cursor: pointer;
+  line-height: 1;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.day-chip:hover { border-color: var(--blue); color: var(--blue); }
+.day-chip.on { background: var(--blue); border-color: var(--blue); color: #fff; }
 .grp-thead { padding: 4px 0; font: 500 10px var(--mono); letter-spacing: 0.06em; color: var(--faint); }
 .grp-row { padding: 6px 0; border-top: 1px solid rgba(0, 0, 0, 0.06); }
 .grp-name { font-size: 12.5px; font-weight: 600; }

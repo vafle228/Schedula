@@ -109,6 +109,7 @@ def group(g: Group) -> dict[str, Any]:
         "majorId": g.major_id,
         "course": g.course,
         "leaderId": g.leader_id,
+        "studyDays": g.study_days,
     }
 
 

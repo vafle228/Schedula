@@ -55,6 +55,9 @@ class GroupHandlers:
         if "leaderId" in body:
             raw = body["leaderId"]
             changes["leader_id"] = int(raw) if raw is not None else None
+        if "studyDays" in body:
+            raw = body["studyDays"] or []
+            changes["study_days"] = sorted({int(d) for d in raw})
         return ser.group(self._service.patch(int(params["id"]), changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:

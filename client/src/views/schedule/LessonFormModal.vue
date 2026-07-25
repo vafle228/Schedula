@@ -28,7 +28,7 @@ const slotOpts = computed(() => Array.from({ length: slotsN.value }, (_, i) => {
   const b = bells.value[i] || { from: '', to: '', hours: 2 }
   return { v: String(i), label: (i + 1) + ' пара · ' + b.from + '–' + b.to + ' · ' + b.hours + ' ак.ч' }
 }))
-const roomOpts = computed(() => store.state.rooms.map((r) => ({ v: r.id, label: r.id + ', ' + r.type + ', ' + r.capacity })))
+const roomOpts = computed(() => store.state.rooms.map((r) => ({ v: r.id, label: r.id + ', ' + r.type })))
 
 /* Substitution (замена): staff teacher first, then the rest. Picking another
    than штатный marks the occurrence as a замена for this week only. */

@@ -64,12 +64,15 @@ const enriched = computed(() => {
     discName[d.id] = d.name
     d.topics.forEach((tp) => { topicName[tp.id] = tp.name })
   })
+  const groupDays = {}
+  state.groups.forEach((g) => { groupDays[g.id] = g.studyDays || [] })
   return state.lessons
     .filter((l) => l.period === state.period)
     .map((l) => ({
       id: l.id,
       g: groupName(l.groupId),
       groupId: l.groupId,
+      studyDays: groupDays[l.groupId] || [],
       disc: discName[l.disciplineId] || '',
       disciplineId: l.disciplineId,
       topicId: l.topicId,

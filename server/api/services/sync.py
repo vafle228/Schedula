@@ -163,7 +163,9 @@ class LessonSyncService(ServiceBase):
     def enrich(self, year_id: int, period: str) -> list[EnrichedLesson]:
         """Build the flat lesson views for the generator / conflict engine."""
         disc_names = {d.id: d.name for d in self._disciplines.list_by_year(year_id)}
-        group_names = {g.id: g.name for g in self._groups.list_by_year(year_id)}
+        groups = self._groups.list_by_year(year_id)
+        group_names = {g.id: g.name for g in groups}
+        group_days = {g.id: g.study_days for g in groups}
         assignments = self._assignments.list_by_year(year_id)
         return [
             EnrichedLesson(
@@ -179,6 +181,7 @@ class LessonSyncService(ServiceBase):
                 sub_by=lesson.sub_by,
                 orphan=(lesson.group_id, lesson.topic_id) not in assignments,
                 number=lesson.number,
+                study_days=group_days.get(lesson.group_id, []),
             )
             for lesson in self._lessons.list_by_year_period(year_id, period)
         ]

@@ -29,9 +29,13 @@ export function computeGeneration(enriched, teachers, cfg, mode) {
   let softUsed = 0
   todo.forEach((L) => {
     let softBest = null
+    // Restrict to the group's own study days, if it pinned any ([] = all).
+    const lessonDays = (L.studyDays && L.studyDays.length)
+      ? dayIdxs.filter((d) => L.studyDays.includes(d))
+      : dayIdxs
     outer:
     for (let w = 1; w <= weeksN; w++) {
-      for (const d of dayIdxs) {
+      for (const d of lessonDays) {
         for (let s = 0; s < slotsN; s++) {
           const st = slotStatus(L, w, d, s, null, lessons, teachers, cfg)
           if (st.kind === 'hard' || st.kind === 'unfit') continue

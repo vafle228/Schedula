@@ -2,7 +2,6 @@
 import { reactive, ref, computed, watch } from 'vue'
 import { store } from '../../store/index.js'
 import { api } from '../../api/index.js'
-import { ALL_DAYS } from '../../utils/kinds.js'
 import { toMin, toStr, slotEnd, slotLen } from '../../utils/slots.js'
 import { confirmDelete } from '../../composables/useConfirm.js'
 import ModalWindow from '../../components/ModalWindow.vue'
@@ -109,7 +108,7 @@ async function doRollover() {
   }
 }
 
-const form = reactive({ dirty: false, saved: false, acadMin: 45, days: [], slots: [] })
+const form = reactive({ dirty: false, saved: false, acadMin: 45, slots: [] })
 
 function loadForm() {
   const p = store.state.periods[activeId.value]
@@ -117,7 +116,6 @@ function loadForm() {
   form.dirty = false
   form.saved = false
   form.acadMin = p.acadMin || 45
-  form.days = [...p.activeDays]
   form.slots = (p.slots || []).map((s) => ({ brk: 15, ...s }))
 }
 loadForm()
@@ -183,10 +181,6 @@ async function removeYear(y) {
 function ahDec() { form.acadMin = Math.max(30, form.acadMin - 5); mark() }
 function ahInc() { form.acadMin = Math.min(60, form.acadMin + 5); mark() }
 const exType = computed(() => 'урок 2 ак.ч = ' + slotLen(2, form.acadMin) + ' мин, консультация 1 ак.ч = ' + form.acadMin + ' мин')
-
-/* ---------- week ---------- */
-
-function toggleDay(i) { form.days[i] = !form.days[i]; mark() }
 
 /* ---------- slots (bells) ---------- */
 
@@ -261,7 +255,6 @@ async function save() {
   if (!form.dirty) return
   await store.savePeriod(activeId.value, {
     acadMin: form.acadMin,
-    activeDays: [...form.days],
     slots: form.slots.map((s) => ({ ...s })),
   })
   form.dirty = false
@@ -401,23 +394,6 @@ async function save() {
             <span>· <b>типы занятий</b> — длительность типа = N × ак.ч ({{ exType }})</span>
             <span>· <b>сетка звонков</b> — время слотов считается из ак. часа и перемен</span>
             <span>· <b>учёт часов</b> — «разложено / заведено / план» в содержании курсов</span>
-          </div>
-        </div>
-
-        <!-- ===== week ===== -->
-        <div class="panel sect">
-          <div class="sect-head">
-            <span class="sect-title">Учебная неделя</span>
-            <span class="sect-sub">Выключенные дни не показываются в сетке «Расписания» и недоступны генератору</span>
-          </div>
-          <div class="days">
-            <button
-              v-for="(d, i) in ALL_DAYS"
-              :key="d"
-              class="day-btn"
-              :class="{ on: form.days[i] }"
-              @click="toggleDay(i)"
-            >{{ d }}</button>
           </div>
         </div>
 
@@ -737,20 +713,6 @@ async function save() {
   border-radius: var(--r-md);
   cursor: pointer;
 }
-
-/* week */
-.days { display: flex; gap: 6px; }
-.day-btn {
-  border: 1px solid var(--line-strong);
-  background: var(--panel);
-  color: var(--faint);
-  font: 500 12.5px var(--sans);
-  padding: 7px 0;
-  width: 52px;
-  border-radius: var(--r-md);
-  cursor: pointer;
-}
-.day-btn.on { border-color: var(--fg); background: var(--fg); color: #FFFFFF; }
 
 /* slots */
 .slot-table { display: flex; flex-direction: column; }
