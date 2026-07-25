@@ -3,7 +3,7 @@ import { computed, ref, watch, nextTick } from 'vue'
 import { store } from '../../store/index.js'
 import ModalWindow from '../../components/ModalWindow.vue'
 import InfoDot from '../../components/InfoDot.vue'
-import { dui, KINDS } from './useDistribution.js'
+import { dui, KINDS, kindLabel } from './useDistribution.js'
 
 const nameEl = ref(null)
 
@@ -25,6 +25,9 @@ const selectedGroup = computed(() => {
 
 const totalHours = computed(() => cd.value.topics.reduce((h, t) => h + (Number(t.hours) || 0), 0))
 
+function decH(tp) { tp.hours = Math.max(2, (Number(tp.hours) || 2) - 2) }
+function incH(tp) { tp.hours = (Number(tp.hours) || 0) + 2 }
+
 /* Курс и семестр не редактируются в форме: курс берётся из выбранной группы,
    семестр — активный (Итерация 5.1). */
 const courseLabel = computed(() => (selectedGroup.value ? selectedGroup.value.course + ' курс' : 'зависит от группы'))
@@ -34,7 +37,7 @@ const semesterLabel = computed(() => (store.state.period === 'fall' ? 'осен�
 const valid = computed(() => !!(cd.value && cd.value.name.trim() && selectedGroup.value))
 
 function addTopicRow() {
-  cd.value.topics.push({ kind: 'lec', name: '', hours: 24 })
+  cd.value.topics.push({ kind: 'lec', hours: 24 })
 }
 
 function removeTopicRow(i) {
@@ -45,10 +48,10 @@ async function save() {
   const c = cd.value
   if (!c.name.trim()) { c.error = 'Укажите название дисциплины'; return }
   if (!selectedGroup.value) { c.error = 'Выберите группу'; return }
-  // пустые строки тем молча отбрасываются; дисциплина без тем разрешена
+  // блоки без часов молча отбрасываются; дисциплина без блоков разрешена
   const topics = c.topics
-    .filter((t) => t.name.trim() && Number(t.hours) > 0)
-    .map((t) => ({ kind: t.kind, name: t.name.trim(), hours: Number(t.hours) }))
+    .filter((t) => Number(t.hours) > 0)
+    .map((t) => ({ kind: t.kind, name: kindLabel(t.kind), hours: Number(t.hours) }))
   const g = selectedGroup.value
   const payload = { name: c.name.trim(), majorId: g.majorId, course: g.course, period: store.state.period, topics }
   const d = await store.createDiscipline(payload)
@@ -93,10 +96,10 @@ async function save() {
       </div>
       <div class="fld">
         <div class="topics-head">
-          <span class="lbl">Темы</span>
-          <InfoDot :size="15" tip="Каждая тема — занятие своего вида; назначается своему преподавателю. Дисциплину можно создать и без тем — добавите позже." />
+          <span class="lbl">Блоки нагрузки</span>
+          <InfoDot :size="15" tip="Каждый блок — вид занятия с количеством ак. часов; назначается своему преподавателю. Дисциплину можно создать и без блоков — добавите позже." />
           <span class="sp"></span>
-          <span class="count mono">{{ cd.topics.filter((t) => t.name.trim()).length }}/{{ cd.topics.length }}</span>
+          <span class="count mono">{{ cd.topics.length }}</span>
         </div>
         <div class="topics-box">
           <div class="topics-list">
@@ -107,14 +110,17 @@ async function save() {
                 </select>
                 <span class="chev">▾</span>
               </div>
-              <input v-model="tp.name" class="input topic-name" placeholder="Название темы" @input="cd.error = ''">
-              <input v-model="tp.hours" class="input topic-hours mono" type="number" min="0">
-              <span class="hours-unit">ч</span>
-              <span class="rm" title="Удалить тему" @click="removeTopicRow(i)">×</span>
+              <div class="hours-step">
+                <button class="step-btn" :disabled="tp.hours <= 2" @click="decH(tp)">−</button>
+                <input v-model.number="tp.hours" class="input topic-hours mono" type="number" min="2">
+                <span class="hours-unit">ак.ч</span>
+                <button class="step-btn" @click="incH(tp)">＋</button>
+              </div>
+              <span class="rm" title="Удалить блок" @click="removeTopicRow(i)">×</span>
             </div>
-            <div v-if="!cd.topics.length" class="topics-empty">Тем пока нет — добавьте ниже или позже, в списке дисциплин.</div>
+            <div v-if="!cd.topics.length" class="topics-empty">Блоков пока нет — добавьте ниже или позже, в списке дисциплин.</div>
           </div>
-          <div class="add-topic" @click="addTopicRow"><span class="plus">＋</span>Добавить тему</div>
+          <div class="add-topic" @click="addTopicRow"><span class="plus">＋</span>Добавить блок</div>
         </div>
       </div>
     </div>
@@ -172,9 +178,32 @@ async function save() {
 }
 .kind-sel { flex: none; width: 142px; }
 .kind-sel select { padding: 6px 24px 6px 9px; font-size: 12px; font-weight: 500; border-radius: var(--r-sm); }
-.topic-name { flex: 1; min-width: 0; font-size: 12.5px; padding: 6px 9px; border-radius: var(--r-sm); }
-.topic-hours { width: 64px; flex: none; font: 500 12.5px var(--mono); text-align: right; padding: 6px 8px; border-radius: var(--r-sm); }
+.hours-step { display: inline-flex; align-items: center; gap: 5px; flex: 1; }
+.topic-hours {
+  width: 56px;
+  flex: none;
+  font: 500 12.5px var(--mono);
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: var(--r-sm);
+  -moz-appearance: textfield;
+}
+.topic-hours::-webkit-inner-spin-button,
+.topic-hours::-webkit-outer-spin-button { -webkit-appearance: none; }
 .hours-unit { font-size: 11px; color: var(--faint); flex: none; }
+.step-btn {
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  flex: none;
+}
+.step-btn:hover { background: var(--hover); }
+.step-btn:disabled { opacity: 0.35; cursor: default; }
 .rm { flex: none; color: var(--dim); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 2px; }
 .rm:hover { color: var(--orange-dark); }
 .add-topic {

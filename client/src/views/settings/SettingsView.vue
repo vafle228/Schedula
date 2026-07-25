@@ -486,12 +486,12 @@ async function save() {
             <div class="ny-term-fields">
               <div class="fld">
                 <span class="ny-flabel">Начало</span>
-                <input v-model="newYear.autFrom" class="input mono ny-date aut" placeholder="01.09.2028">
+                <input v-model="newYear.autFrom" type="date" class="input mono ny-date aut">
               </div>
               <span class="ny-arrow">→</span>
               <div class="fld">
                 <span class="ny-flabel">Конец</span>
-                <input v-model="newYear.autTo" class="input mono ny-date aut" placeholder="24.12.2028">
+                <input v-model="newYear.autTo" type="date" class="input mono ny-date aut">
               </div>
             </div>
           </div>
@@ -505,12 +505,12 @@ async function save() {
             <div class="ny-term-fields">
               <div class="fld">
                 <span class="ny-flabel">Начало</span>
-                <input v-model="newYear.sprFrom" class="input mono ny-date spr" placeholder="05.02.2029">
+                <input v-model="newYear.sprFrom" type="date" class="input mono ny-date spr">
               </div>
               <span class="ny-arrow">→</span>
               <div class="fld">
                 <span class="ny-flabel">Конец</span>
-                <input v-model="newYear.sprTo" class="input mono ny-date spr" placeholder="27.05.2029">
+                <input v-model="newYear.sprTo" type="date" class="input mono ny-date spr">
               </div>
             </div>
           </div>

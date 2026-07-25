@@ -46,6 +46,6 @@ if __name__ == "__main__":
         url="http://127.0.0.1:8000/",
         js_api=js_api,
         min_size=(1500, 800))
-    js_api._window = window
+    js_api.window = window
 
     webview.start(gui="edgechromium" if sys.platform == "win32" else "qt")

@@ -94,7 +94,7 @@ function mkDisc(group, d) {
     badgeBg: full ? 'rgba(31,138,91,0.10)' : asg ? 'rgba(217,119,6,0.10)' : '#F2F0EB',
     expanded: !!dui.expDisc[rowKey],
     dragging: dui.dragKind === 'disc' && dui.dragId === d.id && dui.dragGroupId === group.id,
-    dragTitle: full ? 'Все темы назначены' : 'Перетащите на преподавателя — назначатся все незакрытые темы',
+    dragTitle: full ? 'Все блоки назначены' : 'Перетащите на преподавателя — назначатся все незакрытые блоки',
     topics: d.topics
       .filter((tp) => dui.fKind === 'all' || tp.kind === dui.fKind)
       .map((tp) => mkTopic(group, d, tp)),
@@ -158,13 +158,13 @@ function dragEnd() {
 /* assign / unassign */
 function assignAll(dv, e) {
   const ids = dv.d.topics.filter((tp) => !teacherOfTopic(dv.group.id, tp.id)).map((tp) => tp.id)
-  if (ids.length) openMenuEv(ids, e, 'Назначить все незакрытые темы: ' + dv.d.name + ' (' + dv.group.name + ')', dv.group.id)
+  if (ids.length) openMenuEv(ids, e, 'Назначить все незакрытые блоки: ' + dv.d.name + ' (' + dv.group.name + ')', dv.group.id)
 }
 function topicPlus(tv, e) {
-  openMenuEv([tv.tp.id], e, kindLabel(tv.tp.kind) + ': ' + tv.tp.name + ', ' + tv.d.name + ' (' + tv.group.name + ')', tv.group.id)
+  openMenuEv([tv.tp.id], e, kindLabel(tv.tp.kind) + ', ' + tv.tp.hours + ' ак.ч — ' + tv.d.name + ' (' + tv.group.name + ')', tv.group.id)
 }
 function topicClick(tv, e) {
-  openMenuAt([tv.tp.id], e.clientX, e.clientY, kindLabel(tv.tp.kind) + ': ' + tv.tp.name + ', ' + tv.d.name, tv.group.id)
+  openMenuAt([tv.tp.id], e.clientX, e.clientY, kindLabel(tv.tp.kind) + ', ' + tv.tp.hours + ' ак.ч — ' + tv.d.name, tv.group.id)
 }
 function unassign(groupId, tp) {
   commitAssign([{ groupId, topicId: tp.id, to: null }])
@@ -174,7 +174,7 @@ async function removeDisc(dv) {
   const ok = await confirmDelete({
     title: 'Удалить дисциплину?',
     message: n
-      ? `Дисциплина и все её темы (${n}) будут удалены из плана всех групп этого курса и специальности, вместе с назначениями и занятиями. Действие необратимо.`
+      ? `Дисциплина и все её блоки (${n}) будут удалены из плана всех групп этого курса и специальности, вместе с назначениями и занятиями. Действие необратимо.`
       : 'Дисциплина будет удалена из плана. Действие необратимо.',
     entityName: `${dv.d.name} · ${dv.group.name}`,
   })
@@ -183,9 +183,9 @@ async function removeDisc(dv) {
 
 async function removeTopic(tv) {
   const ok = await confirmDelete({
-    title: 'Удалить тему?',
-    message: 'Тема, её назначения и занятия в расписании будут удалены во всех группах курса. Дисциплина сохранится. Действие необратимо.',
-    entityName: `${tv.tp.name} · ${tv.d.name}`,
+    title: 'Удалить блок?',
+    message: 'Блок, его назначения и занятия в расписании будут удалены во всех группах курса. Дисциплина сохранится. Действие необратимо.',
+    entityName: `${kindLabel(tv.tp.kind)}, ${tv.tp.hours} ак.ч · ${tv.d.name}`,
   })
   if (ok) store.removeTopic(tv.tp.id)
 }
@@ -364,7 +364,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
         <div class="pool-head">
           <div class="pool-title-row">
             <span class="pool-title">Дисциплины</span>
-            <InfoDot tip="Дисциплина раскрывается в темы. Перетащите тему (или всю дисциплину) на преподавателя справа — или нажмите ＋ на строке." />
+            <InfoDot tip="Дисциплина раскрывается в блоки нагрузки (вид + ак. часы). Перетащите блок (или всю дисциплину) на преподавателя справа — или нажмите ＋ на строке." />
             <span class="sp"></span>
             <button class="btn-primary new-disc" title="Создать дисциплину (Ctrl+N)" @click="openCreateDisc">
               <span class="plus">＋</span>Дисциплина
@@ -374,7 +374,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             ref="searchEl"
             v-model="dui.search"
             class="input"
-            placeholder="Поиск дисциплины, темы или группы…  ( / )"
+            placeholder="Поиск дисциплины или группы…  ( / )"
             style="font-size: 12.5px"
           >
           <div class="filters">
@@ -415,7 +415,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                 @dragstart="discDragStart(dv, $event)"
                 @dragend="dragEnd"
               >
-                <span class="chevron" title="Развернуть / свернуть темы">{{ dv.expanded ? '▾' : '▸' }}</span>
+                <span class="chevron" title="Развернуть / свернуть блоки">{{ dv.expanded ? '▾' : '▸' }}</span>
                 <span class="disc-name" :title="dv.d.name">{{ dv.d.name }}</span>
                 <span v-if="dv.d.isNew" class="new-tag mono">создана</span>
                 <span class="disc-hours mono">{{ dv.hoursLabel }}</span>
@@ -423,7 +423,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                 <span
                   v-if="!dv.full"
                   class="plus-circle"
-                  title="Назначить все незакрытые темы"
+                  title="Назначить все незакрытые блоки"
                   @click.stop="assignAll(dv, $event)"
                 >＋</span>
                 <span
@@ -447,10 +447,8 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   <span
                     class="kind-dot"
                     :style="{ borderRadius: tv.dotRadius, background: tv.dotColor }"
-                    :title="tv.kindLabel"
                   ></span>
-                  <span class="topic-name" :title="tv.tp.name">{{ tv.tp.name }}</span>
-                  <span class="topic-kind" :style="{ color: tv.dotColor }">{{ tv.kindLabel }}</span>
+                  <span class="topic-kind" :style="{ color: tv.dotColor, flex: 1 }">{{ tv.kindLabel }}</span>
                   <span class="topic-hours mono">{{ tv.hours }}</span>
                   <span
                     v-if="tv.t"
@@ -472,16 +470,16 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   >＋</span>
                   <span
                     class="topic-rm"
-                    title="Удалить тему из плана"
+                    title="Удалить блок из плана"
                     @click.stop="removeTopic(tv)"
                   >×</span>
                 </div>
                 <div
                   class="add-topic"
-                  title="Добавить тему или занятие в план"
-                  @click.stop="dui.addTopic = { discId: dv.d.id, kind: 'lec', name: '', hours: 24 }"
+                  title="Добавить блок нагрузки в план"
+                  @click.stop="dui.addTopic = { discId: dv.d.id, kind: 'lec', hours: 24 }"
                 >
-                  <span class="add-circle">＋</span>Добавить тему
+                  <span class="add-circle">＋</span>Добавить блок
                 </div>
               </div>
             </div>
@@ -542,14 +540,14 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                   class="kind-dot"
                   :style="{ borderRadius: dotRadius(a.tp.kind), background: kindColor(a.tp.kind) }"
                 ></span>
-                <span class="ta-label" :title="a.d.name + ', ' + a.tp.name + ' — ' + a.group.name">
-                  {{ a.group.name }} · {{ a.d.name }}, {{ a.tp.name }}
+                <span class="ta-label" :title="a.d.name + ', ' + kindLabel(a.tp.kind) + ' — ' + a.group.name">
+                  {{ a.group.name }} · {{ a.d.name }}, {{ kindLabel(a.tp.kind) }}
                 </span>
                 <span class="ta-hours mono">{{ a.tp.hours }} ч</span>
                 <span class="ta-rm" title="Снять назначение" @click.stop="unassign(a.group.id, a.tp)">×</span>
               </div>
               <div v-if="tv.assigns.length === 0" class="t-empty">
-                Нет назначений — перетащите тему или нажмите ＋ на теме
+                Нет назначений — перетащите блок или нажмите ＋ на блоке
               </div>
             </div>
           </div>
@@ -779,8 +777,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 }
 .topic-row:hover { background: var(--bg); }
 .kind-dot { flex: none; width: 8px; height: 8px; }
-.topic-name { font-size: 12.5px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.topic-kind { font-size: 10.5px; flex: none; }
+.topic-kind { font-size: 12.5px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topic-hours { font: 500 11.5px var(--mono); color: var(--sub); flex: none; width: 38px; text-align: right; }
 .assignee {
   flex: none;

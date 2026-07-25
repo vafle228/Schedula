@@ -22,7 +22,7 @@ export const dui = reactive({
   ov: false,
   exp: null, // { step: 'config'|'gen'|'done', period, fileName }
   cd: null, // create-discipline form
-  addTopic: null, // { discId, kind, name, hours }
+  addTopic: null, // { discId, kind, hours }
 })
 
 export const norm = NORM_HOURS
@@ -91,7 +91,6 @@ export const filtered = computed(() => {
     if (q && !(
       d.name.toLowerCase().includes(q)
       || group.name.toLowerCase().includes(q)
-      || d.topics.some((tp) => tp.name.toLowerCase().includes(q))
     )) return false
     if (dui.fKind !== 'all' && !d.topics.some((tp) => tp.kind === dui.fKind)) return false
     const total = d.topics.length

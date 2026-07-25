@@ -25,7 +25,7 @@ const allRows = computed(() => {
         const tid = teacherOfTopic(g.id, tp.id)
         const t = tid ? store.teacherById(tid) : null
         rows.push({
-          disc: d.name + ', ' + tp.name,
+          disc: d.name,
           group: g.name,
           kind: kindShort(tp.kind),
           hours: String(tp.hours),
@@ -103,13 +103,13 @@ function close() {
         </div>
         <div v-if="warnCount > 0" class="warn-box">
           <span class="warn-ico">⚠</span>
-          <span class="warn-text">{{ warnCount }} тем не назначено. Файл можно сформировать — строки останутся без преподавателя.</span>
+          <span class="warn-text">{{ warnCount }} блоков не назначено. Файл можно сформировать — строки останутся без преподавателя.</span>
           <span class="warn-show" @click="showWarn">Показать</span>
         </div>
         <div class="fld">
           <div class="prev-head">
             <span class="lbl">Предпросмотр</span>
-            <InfoDot :size="15" tip="Строка = тема; структура шаблона условная." />
+            <InfoDot :size="15" tip="Строка = блок нагрузки; структура шаблона условная." />
           </div>
           <div class="prev-box">
             <div class="prev-thead mono">
