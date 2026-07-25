@@ -256,7 +256,6 @@ function onPoolDrop(e) {
                   <span class="lesson-no mono">{{ ls.no }}</span>
                   <span class="lesson-topic">{{ ls.topic }}</span>
                   <span v-if="ls.sub" class="lesson-tag sub">замена</span>
-                  <span v-else class="lesson-tag">в пуле</span>
                   <div class="lesson-ord" @click.stop @mousedown.stop>
                     <button class="ord-btn" :disabled="lsIdx === 0" @click="moveLesson(b, lsIdx, -1)">▲</button>
                     <button class="ord-btn" :disabled="lsIdx === b.lessons.length - 1" @click="moveLesson(b, lsIdx, 1)">▼</button>

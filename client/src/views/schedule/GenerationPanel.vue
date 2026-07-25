@@ -96,12 +96,13 @@ function rollback() {
 
 async function accept() {
   const jobId = gen.value.jobId
-  ui.gen = null
+  ui.gen = { ...gen.value, phase: 'accepting' }
   await store.acceptGeneration(jobId)
+  ui.gen = null
 }
 
 function onBackdrop() {
-  if (gen.value && gen.value.phase !== 'run') cancel()
+  if (gen.value && gen.value.phase !== 'run' && gen.value.phase !== 'accepting') cancel()
 }
 
 onUnmounted(() => {
@@ -114,7 +115,7 @@ onUnmounted(() => {
     <div class="drawer" @click.stop>
       <div class="head">
         <span class="head-title">{{ title }}</span>
-        <span class="x-close" title="Закрыть (Esc)" @click="gen.phase !== 'run' && cancel()">×</span>
+        <span class="x-close" title="Закрыть (Esc)" @click="gen.phase !== 'run' && gen.phase !== 'accepting' && cancel()">×</span>
       </div>
 
       <!-- PREP -->
@@ -181,6 +182,14 @@ onUnmounted(() => {
           <div class="run-hint">
             Отмена вернёт сетку к состоянию до запуска. Сетка на время генерации доступна только для чтения.
           </div>
+        </div>
+      </template>
+
+      <!-- ACCEPTING -->
+      <template v-else-if="gen.phase === 'accepting'">
+        <div class="run-body">
+          <span class="spinner"></span>
+          <div class="run-hint">Сохраняем результат…</div>
         </div>
       </template>
 

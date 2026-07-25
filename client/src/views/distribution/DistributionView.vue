@@ -23,9 +23,6 @@ const periodBtns = [
   { k: 'spring', label: 'Весна' },
 ]
 const progressPct = computed(() => (progress.value.tot ? Math.round((progress.value.don / progress.value.tot) * 100) : 0))
-const canUndo = computed(() => store.state.planUndo.length > 0)
-const canRedo = computed(() => store.state.planRedo.length > 0)
-
 /* Switching season: pool, teacher load and progress recompute by period.
    Cancel any in-flight drag and close menus/modals that hold topics or a
    discipline from the season we're leaving, so nothing acts on stale ids. */
@@ -332,29 +329,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
       </div>
       <div class="sp"></div>
       <button class="btn" title="Экспорт в Excel по государственному шаблону (Ctrl+E)" @click="openExport">Экспорт…</button>
-      <div class="ov-wrap">
-        <button
-          class="btn ov-btn"
-          :style="{ background: dui.ov ? '#F2F0EB' : '' }"
-          title="Ещё: история действий"
-          @click="dui.ov = !dui.ov"
-        >⋯</button>
-        <template v-if="dui.ov">
-          <div class="ov-backdrop" @click="dui.ov = false"></div>
-          <div class="ov-menu">
-            <button
-              class="ov-item"
-              :style="{ color: canUndo ? '#1F1E1B' : '#C9C5BB' }"
-              @click="dui.ov = false; store.planUndoAct()"
-            >↶ Отменить<span class="ov-kbd mono">Ctrl+Z</span></button>
-            <button
-              class="ov-item"
-              :style="{ color: canRedo ? '#1F1E1B' : '#C9C5BB' }"
-              @click="dui.ov = false; store.planRedoAct()"
-            >↷ Повторить<span class="ov-kbd mono">Ctrl+Shift+Z</span></button>
-          </div>
-        </template>
-      </div>
     </div>
 
     <!-- ======= workspace ======= -->
@@ -628,38 +602,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 .progress-track { width: 100%; height: 3px; background: var(--active); border-radius: 2px; overflow: hidden; }
 .progress-fill { height: 100%; background: var(--fg); }
 
-.ov-wrap { position: relative; flex: none; }
-.ov-btn { font: 600 15px var(--sans); width: 31px; height: 31px; padding: 0; }
-.ov-backdrop { position: fixed; inset: 0; z-index: 45; }
-.ov-menu {
-  position: absolute;
-  right: 0;
-  top: 37px;
-  z-index: 46;
-  width: 252px;
-  background: var(--panel);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 9px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-}
-.ov-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: none;
-  background: transparent;
-  padding: 8px 10px;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  font: 400 12.5px var(--sans);
-  text-align: left;
-  width: 100%;
-}
-.ov-item:hover { background: var(--chip); }
-.ov-kbd { margin-left: auto; font: 400 10.5px var(--mono); color: var(--faint); }
 
 .work { flex: 1; display: flex; min-height: 0; padding: 12px; gap: 0; }
 .pool { flex: none; min-width: 0; }

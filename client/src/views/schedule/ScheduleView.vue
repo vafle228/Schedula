@@ -77,9 +77,6 @@ const entMeta = computed(() => (ui.view === 'group'
 const curTeacher = computed(() => (ui.view === 'teacher' ? store.teacherById(ui.ent.teacher) : null))
 const entWarn = computed(() => !!(curTeacher.value && !curTeacher.value.c))
 
-const canUndo = computed(() => store.state.schedUndo.length > 0)
-const canRedo = computed(() => store.state.schedRedo.length > 0)
-
 function pickView(k) {
   ui.view = k
   ui.cursor = null
@@ -110,10 +107,6 @@ function openGen() {
 function openExport() {
   ui.ex = { step: 'config', view: 'group', scope: 'all' }
 }
-
-function ovUndo() { ui.ov = false; store.schedUndoAct() }
-function ovRedo() { ui.ov = false; store.schedRedoAct() }
-function ovPrint() { ui.ov = false; window.print() }
 
 /* ---------- keyboard ---------- */
 
@@ -235,36 +228,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
       </div>
       <button class="btn" title="Выгрузить расписание в Excel" @click="openExport">Экспорт…</button>
       <button class="btn-primary" title="Разложить черновик расписания по неделям" @click="openGen">⟳ Разложить</button>
-      <div class="ov-wrap">
-        <button
-          class="btn ov-btn"
-          :style="{ background: ui.ov ? '#F2F0EB' : '' }"
-          title="Ещё: отмена, печать, настройки периода"
-          @click="ui.ov = !ui.ov"
-        >⋯</button>
-        <template v-if="ui.ov">
-          <div class="ov-backdrop" @click="ui.ov = false"></div>
-          <div class="ov-menu">
-            <button
-              class="ov-item"
-              :style="{ color: canUndo ? '#1F1E1B' : '#C9C5BB', cursor: canUndo ? 'pointer' : 'not-allowed' }"
-              title="Отменить (Ctrl+Z)"
-              @click="ovUndo"
-            >↶ Отменить действие<span class="ov-kbd mono">Ctrl+Z</span></button>
-            <button
-              class="ov-item"
-              :style="{ color: canRedo ? '#1F1E1B' : '#C9C5BB', cursor: canRedo ? 'pointer' : 'not-allowed' }"
-              title="Повторить (Ctrl+Shift+Z)"
-              @click="ovRedo"
-            >↷ Повторить действие<span class="ov-kbd mono">Ctrl+⇧+Z</span></button>
-            <div class="ov-div"></div>
-            <button class="ov-item" title="Печать листа сетки" @click="ovPrint">Печать сетки</button>
-            <router-link class="ov-item ov-link" to="/settings" @click="ui.ov = false">
-              Настройки периода<span class="ov-kbd mono">раздел →</span>
-            </router-link>
-          </div>
-        </template>
-      </div>
     </div>
 
     <!-- ======= empty period ======= -->
@@ -453,42 +416,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
   border-radius: 8px;
 }
 
-.ov-wrap { position: relative; flex: none; }
-.ov-btn { font: 600 15px var(--sans); width: 31px; height: 31px; padding: 0; }
-.ov-backdrop { position: fixed; inset: 0; z-index: 45; }
-.ov-menu {
-  position: absolute;
-  right: 0;
-  top: 40px;
-  z-index: 46;
-  width: 252px;
-  background: var(--panel);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-  border-radius: 9px;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
-  padding: 4px;
-  display: flex;
-  flex-direction: column;
-}
-.ov-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  border: none;
-  background: transparent;
-  padding: 8px 10px;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  font: 400 12.5px var(--sans);
-  color: var(--fg);
-  text-align: left;
-  width: 100%;
-}
-.ov-item:hover { background: var(--chip); }
-.ov-link { text-decoration: none; }
-.ov-link:hover { color: var(--fg); text-decoration: none; }
-.ov-kbd { margin-left: auto; font: 400 10.5px var(--mono); color: var(--faint); }
-.ov-div { height: 1px; background: rgba(0, 0, 0, 0.08); margin: 4px 6px; }
 
 .empty {
   flex: 1;
