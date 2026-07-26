@@ -125,7 +125,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,                            # UPX ломает ресурс иконки в .exe (Windows показывает дефолтную) + ложные срабатывания антивируса
     console=True,                         # <-- для отладки True; для релиза False
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -140,7 +140,7 @@ coll = COLLECT(
     a.binaries,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,                            # см. коммент в EXE: UPX портит иконку/триггерит AV
     upx_exclude=[],
     name="Schedula",
 )
