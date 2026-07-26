@@ -2,7 +2,7 @@
 /**
  * Настройки → «Праздничные и нерабочие дни».
  *
- * Primary source is the Russian production calendar (calendar.kuzyak.in): the
+ * Primary source is the Russian production calendar (isdayoff.ru): the
  * «Обновить из календаря» action fetches the year's holidays and folds them
  * onto the current semester's grid. The manual editor is the fallback — add or
  * drop individual days by date.
@@ -30,15 +30,52 @@ const cells = computed(() => (cfg.value && cfg.value.holidays ? [...cfg.value.ho
 // Persisted holiday labels, `{ "w-d": name }` — populated by the calendar sync.
 const cellNames = computed(() => (cfg.value && cfg.value.holidayNames) || {})
 
-// Day-offs grouped by month — keeps a long list readable instead of a wall of chips.
+// Collapse consecutive day-numbers into ranges: [1,2,5,6,8] → "1–2, 5–6, 8".
+function domRanges(days) {
+  const nums = days.map((d) => d.dom)
+  const parts = []
+  let s = nums[0]; let p = nums[0]
+  for (let k = 1; k < nums.length; k++) {
+    if (nums[k] === p + 1) { p = nums[k]; continue }
+    parts.push(s === p ? String(s) : s + '–' + p); s = nums[k]; p = nums[k]
+  }
+  parts.push(s === p ? String(s) : s + '–' + p)
+  return parts.join(', ')
+}
+
+// Day-offs grouped by month, then folded into badges — one per named holiday
+// (so a multi-day break, or a bridge day sharing its holiday's name, reads as a
+// single badge with a date range), plus one badge per unnamed day-off.
 const months = computed(() => {
   const groups = []
   const byKey = new Map()
   for (const c of cells.value) {
     const d = describeCell(cfg.value, c)
+    d.name = cellNames.value[c] || ''
     let g = byKey.get(d.ym)
     if (!g) { g = { key: d.ym, label: d.monthLabel, days: [] }; byKey.set(d.ym, g); groups.push(g) }
-    g.days.push({ ...d, name: cellNames.value[c] || '' })
+    g.days.push(d)
+  }
+  for (const g of groups) {
+    const named = new Map()
+    const items = []
+    for (const d of g.days) {
+      if (d.name) {
+        let it = named.get(d.name)
+        if (!it) { it = { name: d.name, days: [] }; named.set(d.name, it); items.push(it) }
+        it.days.push(d)
+      } else {
+        items.push({ name: '', days: [d] })
+      }
+    }
+    for (const it of items) {
+      it.cells = it.days.map((x) => x.cell)
+      it.range = domRanges(it.days)
+      it.wd = it.days.length === 1 ? it.days[0].wd : '' // weekday only when it's a single day
+      it.title = it.name || 'Нерабочий день'
+    }
+    items.sort((a, b) => cellCmp(a.cells[0], b.cells[0]))
+    g.items = items
   }
   return groups
 })
@@ -77,11 +114,18 @@ async function sync() {
       holidays.push(...data.holidays)
       shortN += data.shortDays.filter((s) => dateToCell(cfg.value, s.date)).length
     }
-    const { cells: next, named } = holidaysToCells(cfg.value, holidays)
-    const nameMap = {}
-    named.forEach((n) => { if (n.name) nameMap[n.cell] = n.name })
+    const { cells: fetched, named } = holidaysToCells(cfg.value, holidays)
+    // Union with what's already stored — a refresh adds calendar day-offs
+    // without dropping manually-added ones (or any day-offs marked earlier).
+    const merged = new Set(cells.value)
+    let added = 0
+    for (const c of fetched) if (!merged.has(c)) { merged.add(c); added++ }
+    const next = [...merged].sort(cellCmp)
+    // Keep existing labels (incl. manual edits); fill blanks from the calendar.
+    const nameMap = { ...cellNames.value }
+    named.forEach((n) => { if (n.name && !nameMap[n.cell]) nameMap[n.cell] = n.name })
     await saveCells(next, { holidaySource: 'api', holidayNames: nameMap })
-    ui.msg = `Отмечено ${next.length} ${plural(next.length)} за ${years.join(', ')}.`
+    ui.msg = `Добавлено ${added} ${plural(added)} из календаря за ${years.join(', ')}. Всего отмечено: ${next.length}.`
       + (shortN > 0 ? ` Предпраздничных сокращённых дней: ${shortN} (в сетке не учитываются).` : '')
   } catch (e) {
     ui.err = (e instanceof CalendarError ? e.message : 'Не удалось обновить календарь.')
@@ -104,10 +148,12 @@ async function addManual() {
   ui.newName = ''
 }
 
-async function removeCell(cell) {
+async function removeCells(list) {
   clearMsg()
-  const { [cell]: _dropped, ...rest } = cellNames.value
-  await saveCells(cells.value.filter((c) => c !== cell), { holidayNames: rest })
+  const drop = new Set(list)
+  const rest = {}
+  for (const [k, v] of Object.entries(cellNames.value)) if (!drop.has(k)) rest[k] = v
+  await saveCells(cells.value.filter((c) => !drop.has(c)), { holidayNames: rest })
 }
 
 async function clearAll() {
@@ -190,14 +236,14 @@ function plural(n) {
       <div v-for="g in months" :key="g.key" class="mgroup">
         <span class="mlabel">{{ g.label }}</span>
         <div class="days">
-          <span v-for="day in g.days" :key="day.cell" class="day" :class="{ named: day.name }" :title="day.name || 'Нерабочий день'">
-            <span class="day-num mono">{{ day.dom }}</span>
-            <span class="day-wd">{{ day.wd }}</span>
-            <template v-if="day.name">
+          <span v-for="item in g.items" :key="item.cells[0]" class="day" :class="{ named: item.name }" :title="item.title">
+            <span class="day-num mono">{{ item.range }}</span>
+            <span v-if="item.wd" class="day-wd">{{ item.wd }}</span>
+            <template v-if="item.name">
               <span class="day-sep">·</span>
-              <span class="day-name">{{ day.name }}</span>
+              <span class="day-name">{{ item.name }}</span>
             </template>
-            <button class="day-x" title="Убрать" @click="removeCell(day.cell)">✕</button>
+            <button class="day-x" :title="item.cells.length > 1 ? 'Убрать все' : 'Убрать'" @click="removeCells(item.cells)">✕</button>
           </span>
         </div>
       </div>

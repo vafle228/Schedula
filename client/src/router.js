@@ -7,7 +7,7 @@ import SettingsView from './views/settings/SettingsView.vue'
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: '/', redirect: '/schedule' },
+    { path: '/', redirect: '/distribution' },
     { path: '/distribution', name: 'distribution', component: DistributionView },
     { path: '/schedule', name: 'schedule', component: ScheduleView },
     { path: '/directory', name: 'directory', component: DirectoryView },
