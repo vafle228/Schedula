@@ -28,6 +28,8 @@ class TeacherHandlers:
         changes: dict[str, Any] = {}
         if body.get("name") is not None:
             changes["name"] = body["name"]
+        if body.get("normHours") is not None:
+            changes["norm_hours"] = int(body["normHours"])
         return ser.teacher(self._service.patch(int(params["id"]), changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:

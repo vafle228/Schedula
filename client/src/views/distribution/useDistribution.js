@@ -2,7 +2,7 @@
  * UI state + behaviour of the «Распределение» module.
  */
 import { reactive, computed } from 'vue'
-import { store, NORM_HOURS } from '../../store/index.js'
+import { store } from '../../store/index.js'
 
 export const dui = reactive({
   search: '',
@@ -24,8 +24,6 @@ export const dui = reactive({
   cd: null, // create-discipline form
   addTopic: null, // { discId, kind, hours }
 })
-
-export const norm = NORM_HOURS
 
 /* ---------- indexes ---------- */
 

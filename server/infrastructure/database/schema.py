@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS teachers (
     id          INTEGER PRIMARY KEY,
     name        TEXT NOT NULL,
     photo       TEXT,
+    norm_hours  INTEGER NOT NULL DEFAULT 240,
     constraints TEXT               -- JSON: {hard,soft,method,max} or NULL
 );
 
@@ -67,7 +68,8 @@ CREATE TABLE IF NOT EXISTS absences (
     id         INTEGER PRIMARY KEY,
     teacher_id INTEGER NOT NULL REFERENCES teachers(id) ON DELETE CASCADE,
     type       TEXT NOT NULL,
-    label      TEXT NOT NULL DEFAULT ''
+    date_from  TEXT NOT NULL DEFAULT '',
+    date_to    TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS rooms (
@@ -196,4 +198,24 @@ def _migrate(connection: sqlite3.Connection) -> None:
     if "holiday_names" not in settings_cols:
         connection.execute(
             "ALTER TABLE settings ADD COLUMN holiday_names TEXT NOT NULL DEFAULT '{}'"
+        )
+    teacher_cols = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(teachers)").fetchall()
+    }
+    if "norm_hours" not in teacher_cols:
+        connection.execute(
+            "ALTER TABLE teachers ADD COLUMN norm_hours INTEGER NOT NULL DEFAULT 240"
+        )
+    absence_cols = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(absences)").fetchall()
+    }
+    if "date_from" not in absence_cols:
+        connection.execute(
+            "ALTER TABLE absences ADD COLUMN date_from TEXT NOT NULL DEFAULT ''"
+        )
+    if "date_to" not in absence_cols:
+        connection.execute(
+            "ALTER TABLE absences ADD COLUMN date_to TEXT NOT NULL DEFAULT ''"
         )

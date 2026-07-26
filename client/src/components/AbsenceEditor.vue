@@ -9,9 +9,10 @@ const props = defineProps({
 
 const absences = computed(() => props.teacher.absences || [])
 
-const add = () => store.addAbsence(props.teacher.id, { type: 'vacation', label: '' })
+const add = () => store.addAbsence(props.teacher.id, { type: 'vacation', dateFrom: '', dateTo: '' })
 const setType = (a, e) => store.patchAbsence(props.teacher.id, a.id, { type: e.target.value })
-const setLabel = (a, e) => store.patchAbsence(props.teacher.id, a.id, { label: e.target.value })
+const setDateFrom = (a, e) => store.patchAbsence(props.teacher.id, a.id, { dateFrom: e.target.value })
+const setDateTo = (a, e) => store.patchAbsence(props.teacher.id, a.id, { dateTo: e.target.value })
 const remove = (a) => store.removeAbsence(props.teacher.id, a.id)
 </script>
 
@@ -25,12 +26,21 @@ const remove = (a) => store.removeAbsence(props.teacher.id, a.id)
         </select>
         <span class="chev">▾</span>
       </div>
-      <input
-        class="input label-input"
-        :value="a.label"
-        placeholder="напр. 01–14 сентября"
-        @change="setLabel(a, $event)"
-      >
+      <div class="date-range">
+        <input
+          class="input date-input"
+          type="date"
+          :value="a.dateFrom"
+          @change="setDateFrom(a, $event)"
+        >
+        <span class="date-sep">—</span>
+        <input
+          class="input date-input"
+          type="date"
+          :value="a.dateTo"
+          @change="setDateTo(a, $event)"
+        >
+      </div>
       <span class="rm" title="Удалить период" @click="remove(a)">✕</span>
     </div>
     <div v-if="absences.length === 0" class="empty">
@@ -47,7 +57,9 @@ const remove = (a) => store.removeAbsence(props.teacher.id, a.id)
 .abs-row { display: flex; align-items: center; gap: 8px; }
 .dot { flex: none; width: 8px; height: 8px; border-radius: 2px; }
 .type-sel { flex: none; width: 158px; }
-.label-input { flex: 1; min-width: 0; font-size: 12.5px; }
+.date-range { display: flex; align-items: center; gap: 5px; flex: 1; min-width: 0; }
+.date-input { font-size: 12.5px; width: 138px; flex: none; }
+.date-sep { color: var(--faint); font-size: 12px; flex: none; }
 .rm { flex: none; color: var(--dim); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 4px; }
 .rm:hover { color: var(--orange-dark); }
 .empty { font-size: 12px; color: var(--faint); padding: 2px 0; }

@@ -32,8 +32,8 @@ class AbsenceRepositorySqlLite(AbsenceRepository):
 
     def add(self, absence: Absence) -> int:
         cursor = self._conn.execute(
-            "INSERT INTO absences (teacher_id, type, label) VALUES (?, ?, ?)",
-            (absence.teacher_id, str(absence.type), absence.label),
+            "INSERT INTO absences (teacher_id, type, date_from, date_to) VALUES (?, ?, ?, ?)",
+            (absence.teacher_id, str(absence.type), absence.date_from, absence.date_to),
         )
         self._conn.commit()
         absence.id = cursor.lastrowid
@@ -41,8 +41,8 @@ class AbsenceRepositorySqlLite(AbsenceRepository):
 
     def update(self, absence: Absence) -> None:
         self._conn.execute(
-            "UPDATE absences SET type = ?, label = ? WHERE id = ?",
-            (str(absence.type), absence.label, absence.id),
+            "UPDATE absences SET type = ?, date_from = ?, date_to = ? WHERE id = ?",
+            (str(absence.type), absence.date_from, absence.date_to, absence.id),
         )
         self._conn.commit()
 

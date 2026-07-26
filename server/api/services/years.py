@@ -7,7 +7,7 @@ from dataclasses import replace
 from api.errors import ApiError
 from api.services.base import ServiceBase
 from core.models.academic_year import AcademicYear, YearStatus
-from core.models.settings import SemesterSettings, default_settings, ru_to_iso
+from core.models.settings import SemesterSettings, compute_weeks_count, default_settings, ru_to_iso
 from core.repositories.academic_year_repository import AcademicYearRepository
 from core.repositories.lesson_repository import LessonRepository
 from core.repositories.settings_repository import SettingsRepository
@@ -61,15 +61,18 @@ class YearService(ServiceBase):
             else {}
         )
         starts = {"fall": aut_from, "spring": spr_from}
+        ends = {"fall": aut_to, "spring": spr_to}
         for period in _SEASONS:
             template = source.get(period)
             if template is None:
-                self._settings.save(default_settings(year.id, period, starts[period]))
+                self._settings.save(default_settings(year.id, period, starts[period], ends[period]))
             else:
+                new_start = ru_to_iso(starts[period])
                 self._settings.save(replace(
                     template,
                     year_id=year.id,
-                    start_date=ru_to_iso(starts[period]),
+                    start_date=new_start,
+                    weeks_count=compute_weeks_count(new_start, ends[period]),
                     slots=[replace(s) for s in template.slots],
                     active_days=list(template.active_days),
                     holidays=list(template.holidays),

@@ -194,6 +194,15 @@ function uploadPhoto(e) {
   r.readAsDataURL(f)
 }
 
+function normDec() {
+  if (!curT.value) return
+  store.patchTeacher(curT.value.id, { normHours: Math.max(10, (curT.value.normHours ?? 240) - 10) })
+}
+function normInc() {
+  if (!curT.value) return
+  store.patchTeacher(curT.value.id, { normHours: (curT.value.normHours ?? 240) + 10 })
+}
+
 /* ================= shared ================= */
 
 function onKey(e) {
@@ -457,7 +466,22 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
           </div>
         </div>
         <div class="card-body">
-          <div class="sect">
+          <div class="sect narrow">
+            <div class="micro">НОРМА НАГРУЗКИ</div>
+            <div class="norm-row">
+              <button class="step" @click="normDec">−</button>
+              <input
+                class="input mono norm-val"
+                type="number"
+                min="10"
+                :value="curT.normHours ?? 240"
+                @change="store.patchTeacher(curT.id, { normHours: Math.max(10, parseInt($event.target.value, 10) || 240) })"
+              >
+              <button class="step" @click="normInc">＋</button>
+              <span class="norm-hint">шаг 10 · стандарт 240 — верхняя граница нагрузки в «Распределении»</span>
+            </div>
+          </div>
+          <div class="sect bordered">
             <div class="micro">ЕЖЕНЕДЕЛЬНАЯ ДОСТУПНОСТЬ · клик циклит: свободно → недоступно → нежелательно</div>
             <AvailabilityEditor :teacher="curT" />
           </div>
@@ -628,6 +652,20 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 
 .req-row { display: flex; gap: 8px; }
 .fld { display: flex; flex-direction: column; gap: 5px; }
+
+.norm-row { display: flex; align-items: center; gap: 10px; }
+.norm-val { font: 500 15px var(--mono); width: 72px; text-align: center; padding: 4px 6px; }
+.norm-hint { font-size: 11.5px; color: var(--muted); }
+.step {
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-md);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
 
 .gf-row { display: flex; gap: 8px; align-items: center; }
 

@@ -9,7 +9,7 @@ import CreateDisciplineModal from './CreateDisciplineModal.vue'
 import AddTopicModal from './AddTopicModal.vue'
 import CurriculumExportModal from './CurriculumExportModal.vue'
 import {
-  dui, norm, filtered, progress, dragTopicIds, dragH, hoursOf, teacherOfTopic,
+  dui, filtered, progress, dragTopicIds, dragH, hoursOf, teacherOfTopic,
   openMenuAt, openMenuEv, commitAssign, resetFilters,
   kindLabel, kindColor, dotRadius, topicIndex, KINDS,
 } from './useDistribution.js'
@@ -200,7 +200,8 @@ function mkTeacher(t) {
   const period = store.state.period
   const h = hoursOf(t.id, period)
   const over = !!(dui.dragOver === t.id && dui.dragId)
-  const warn = h > norm
+  const tNorm = t.normHours ?? 240
+  const warn = h > tNorm
   const { topicById, discOfTopic } = topicIndex.value
   const assigns = []
   const asg = store.state.assignments
@@ -218,10 +219,10 @@ function mkTeacher(t) {
     init: over || !t.photo ? initials(t.name) : '',
     avatar: over ? '#3B62C4' : avatarBg(t.photo),
     avatarColor: over ? '#FFFFFF' : t.photo ? 'transparent' : '#5C574E',
-    hoursLabel: over ? h + ' → ' + (h + dragH.value) + ' ч' : h + ' / ' + norm + ' ч',
+    hoursLabel: over ? h + ' → ' + (h + dragH.value) + ' ч' : h + ' / ' + tNorm + ' ч',
     hoursColor: over ? '#3B62C4' : warn ? '#B45309' : h ? '#5C574E' : '#B5B0A6',
     warnMark: warn && !over ? ' ⚠' : '',
-    barPct: Math.min(100, Math.round((h / norm) * 100)) + '%',
+    barPct: Math.min(100, Math.round((h / tNorm) * 100)) + '%',
     barColor: warn ? '#D97706' : '#8A857C',
     countLabel: over ? '+' + dragTopicIds.value.length : assigns.length ? String(assigns.length) : '—',
     expanded: !!dui.expTeacher[t.id],

@@ -20,14 +20,26 @@ class AbsenceService(ServiceBase):
         self._absences = absences
         self._teachers = teachers
 
-    def create(self, teacher_id: int, absence_type: AbsenceType, label: str) -> Absence:
+    def create(
+        self,
+        teacher_id: int,
+        absence_type: AbsenceType,
+        date_from: str = "",
+        date_to: str = "",
+    ) -> Absence:
         """Create an absence for ``teacher_id``.
 
         Raises:
             ApiError: ``404`` when the teacher does not exist.
         """
         self._require(self._teachers.get(teacher_id), "Преподаватель не найден")
-        absence = Absence(id=0, teacher_id=teacher_id, type=absence_type, label=label)
+        absence = Absence(
+            id=0,
+            teacher_id=teacher_id,
+            type=absence_type,
+            date_from=date_from,
+            date_to=date_to,
+        )
         self._absences.add(absence)
         return absence
 

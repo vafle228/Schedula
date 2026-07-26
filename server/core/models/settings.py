@@ -8,7 +8,9 @@ and the number of teaching weeks. Calendar dates (``date_from`` / ``date_to``) a
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
+from datetime import date as _date
 
 
 @dataclass(slots=True)
@@ -69,7 +71,6 @@ _DEFAULT_SLOTS: list[tuple[str, int, int]] = [
 ]
 _DEFAULT_ACTIVE_DAYS: list[bool] = [True, True, True, True, True, False, False]
 DEFAULT_ACAD_MIN: int = 45
-DEFAULT_WEEKS_COUNT: int = 16
 
 
 def default_slots() -> list[Slot]:
@@ -86,23 +87,37 @@ def ru_to_iso(date: str) -> str:
     return date
 
 
-def default_settings(year_id: int, period: str, ru_start_date: str) -> SemesterSettings:
+def compute_weeks_count(start_iso: str, end_ru: str) -> int:
+    """Number of calendar weeks from ``start_iso`` to ``end_ru`` (ceiling).
+
+    The last week may be partial — i.e. a semester ending on a Wednesday still
+    produces a final week that runs Mon–Wed instead of Mon–Sun.
+    """
+    start = _date.fromisoformat(start_iso)
+    end = _date.fromisoformat(ru_to_iso(end_ru))
+    delta = (end - start).days + 1
+    return max(1, math.ceil(delta / 7))
+
+
+def default_settings(year_id: int, period: str, ru_start_date: str, ru_end_date: str) -> SemesterSettings:
     """Build factory-default semester settings for ``(year_id, period)``.
 
     Args:
         year_id: Owning academic year.
         period: Season key (``"fall"`` / ``"spring"``).
         ru_start_date: First study day as ``dd.mm.yyyy`` (converted to ISO).
+        ru_end_date: Last day of the semester as ``dd.mm.yyyy``.
     """
+    start_iso = ru_to_iso(ru_start_date)
     return SemesterSettings(
         year_id=year_id,
         period=period,
-        start_date=ru_to_iso(ru_start_date),
+        start_date=start_iso,
         active_days=list(_DEFAULT_ACTIVE_DAYS),
         acad_min=DEFAULT_ACAD_MIN,
         slots=default_slots(),
         slots_per_day=len(_DEFAULT_SLOTS),
-        weeks_count=DEFAULT_WEEKS_COUNT,
+        weeks_count=compute_weeks_count(start_iso, ru_end_date),
         holidays=[],
         holiday_source="api",
         holiday_names={},

@@ -2,7 +2,7 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { store } from '../../store/index.js'
 import { initials, avatarBg } from '../../utils/format.js'
-import { dui, hoursOf, norm, commitAssign } from './useDistribution.js'
+import { dui, hoursOf, commitAssign } from './useDistribution.js'
 
 const inputEl = ref(null)
 
@@ -20,12 +20,13 @@ const list = computed(() => {
     .filter((t) => !q || t.name.toLowerCase().includes(q))
     .map((t) => {
       const h = hoursOf(t.id, store.state.period)
+      const tNorm = t.normHours ?? 240
       return {
         t, h,
         init: t.photo ? '' : initials(t.name),
         bg: avatarBg(t.photo),
-        hoursLabel: h + ' / ' + norm + ' ч',
-        over: h > norm,
+        hoursLabel: h + ' / ' + tNorm + ' ч',
+        over: h > tNorm,
       }
     })
 })

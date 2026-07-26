@@ -9,9 +9,6 @@ import { api } from '../api/index.js'
 import { analyze } from '../utils/conflicts.js'
 import { applyTopicTypes, kindHours } from '../utils/kinds.js'
 
-/** Weekly-hour cap per teacher and period used by the load indicators. */
-export const NORM_HOURS = 240
-
 const state = reactive({
   loaded: false,
   period: 'fall',
@@ -464,6 +461,12 @@ export const store = {
 
   /* ===== Справочники ===== */
 
+  async patchTeacher(id, body) {
+    const t = await api.patchTeacher(id, body)
+    const i = state.teachers.findIndex((x) => x.id === id)
+    if (i >= 0) state.teachers[i] = t
+    return t
+  },
   async createTeacher(body) {
     const t = await api.createTeacher(body)
     state.teachers.push(t)

@@ -21,7 +21,8 @@ class AbsenceHandlers:
         absence = self._service.create(
             int(params["id"]),
             absence_type=AbsenceType(body.get("type")),
-            label=body.get("label") or "",
+            date_from=body.get("dateFrom") or "",
+            date_to=body.get("dateTo") or "",
         )
         return ser.absence(absence)
 
@@ -30,8 +31,10 @@ class AbsenceHandlers:
         changes: dict[str, Any] = {}
         if "type" in body:
             changes["type"] = AbsenceType(body["type"])
-        if "label" in body:
-            changes["label"] = body["label"]
+        if "dateFrom" in body:
+            changes["date_from"] = body["dateFrom"]
+        if "dateTo" in body:
+            changes["date_to"] = body["dateTo"]
         return ser.absence(self._service.patch(int(params["id"]), changes))
 
     def delete(self, params: Params, query: Query, body: Body) -> None:

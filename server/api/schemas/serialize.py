@@ -77,7 +77,7 @@ def constraints(c: TeacherConstraints | None) -> dict[str, Any] | None:
 
 
 def absence(a: Absence) -> dict[str, Any]:
-    return {"id": a.id, "type": str(a.type), "label": a.label}
+    return {"id": a.id, "type": str(a.type), "dateFrom": a.date_from, "dateTo": a.date_to}
 
 
 def teacher(t: Teacher) -> dict[str, Any]:
@@ -85,6 +85,7 @@ def teacher(t: Teacher) -> dict[str, Any]:
         "id": t.id,
         "name": t.name,
         "photo": t.photo,
+        "normHours": t.norm_hours,
         "c": constraints(t.constraints),
         "absences": [absence(a) for a in t.absences],
     }

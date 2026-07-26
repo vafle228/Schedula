@@ -7,7 +7,7 @@ from typing import Any
 
 from api.services.base import ServiceBase
 from core.models.academic_year import AcademicYear
-from core.models.settings import SemesterSettings
+from core.models.settings import SemesterSettings, compute_weeks_count
 from core.repositories.academic_year_repository import AcademicYearRepository
 from core.repositories.settings_repository import SettingsRepository
 
@@ -47,5 +47,10 @@ class SettingsService(ServiceBase):
         self._apply(settings, changes)
         if "slots" in changes:
             settings.slots_per_day = len(settings.slots)
+        if "start_date" in changes:
+            year = self._years.get(year_id)
+            if year is not None:
+                end_ru = year.aut_to if period == "fall" else year.spr_to
+                settings.weeks_count = compute_weeks_count(settings.start_date, end_ru)
         self._settings.save(settings)
         return settings

@@ -23,13 +23,15 @@ class Absence:
         id: Auto-assigned integer primary key.
         teacher_id: Owning teacher.
         type: Reason for the absence.
-        label: Free-text human span, e.g. ``"01–14 сентября"``.
+        date_from: ISO date string of the first absent day, or empty string.
+        date_to: ISO date string of the last absent day, or empty string.
     """
 
     id: int
     teacher_id: int
     type: AbsenceType
-    label: str = ""
+    date_from: str = ""
+    date_to: str = ""
 
 
 @dataclass(slots=True)
@@ -68,5 +70,6 @@ class Teacher:
     id: int
     name: str
     photo: str | None = None
+    norm_hours: int = 240
     constraints: TeacherConstraints | None = None
     absences: list[Absence] = field(default_factory=list)

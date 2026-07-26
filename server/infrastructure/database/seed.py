@@ -48,8 +48,9 @@ def _seed_settings(
 ) -> None:
     """Create both semester settings for ``year`` from the factory defaults."""
     starts = {"fall": year.aut_from, "spring": year.spr_from}
+    ends = {"fall": year.aut_to, "spring": year.spr_to}
     for period in ("fall", "spring"):
-        settings = default_settings(year.id, period, starts[period])
+        settings = default_settings(year.id, period, starts[period], ends[period])
         seeded = list(holidays.get(period, []))
         settings.holidays = seeded
         # Hand-seeded demo cells are "manual"; empty grids default to calendar sync.

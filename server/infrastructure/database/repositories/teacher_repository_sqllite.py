@@ -34,11 +34,13 @@ def _constraints_from_json(raw: str | None) -> TeacherConstraints | None:
 
 
 def _row_to_absence(row: sqlite3.Row) -> Absence:
+    keys = row.keys()
     return Absence(
         id=row["id"],
         teacher_id=row["teacher_id"],
         type=AbsenceType(row["type"]),
-        label=row["label"],
+        date_from=row["date_from"] if "date_from" in keys else "",
+        date_to=row["date_to"] if "date_to" in keys else "",
     )
 
 
@@ -56,10 +58,12 @@ class TeacherRepositorySqlLite(TeacherRepository):
         return [_row_to_absence(r) for r in rows]
 
     def _row_to_teacher(self, row: sqlite3.Row) -> Teacher:
+        keys = row.keys()
         return Teacher(
             id=row["id"],
             name=row["name"],
             photo=row["photo"],
+            norm_hours=row["norm_hours"] if "norm_hours" in keys else 240,
             constraints=_constraints_from_json(row["constraints"]),
             absences=self._absences_for(row["id"]),
         )
@@ -76,10 +80,11 @@ class TeacherRepositorySqlLite(TeacherRepository):
 
     def add(self, teacher: Teacher) -> int:
         cursor = self._conn.execute(
-            "INSERT INTO teachers (name, photo, constraints) VALUES (?, ?, ?)",
+            "INSERT INTO teachers (name, photo, norm_hours, constraints) VALUES (?, ?, ?, ?)",
             (
                 teacher.name,
                 teacher.photo,
+                teacher.norm_hours,
                 _constraints_to_json(teacher.constraints),
             ),
         )
@@ -89,10 +94,11 @@ class TeacherRepositorySqlLite(TeacherRepository):
 
     def update(self, teacher: Teacher) -> None:
         self._conn.execute(
-            "UPDATE teachers SET name = ?, photo = ?, constraints = ? WHERE id = ?",
+            "UPDATE teachers SET name = ?, photo = ?, norm_hours = ?, constraints = ? WHERE id = ?",
             (
                 teacher.name,
                 teacher.photo,
+                teacher.norm_hours,
                 _constraints_to_json(teacher.constraints),
                 teacher.id,
             ),
