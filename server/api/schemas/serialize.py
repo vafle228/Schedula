@@ -41,6 +41,7 @@ def settings(s: SemesterSettings, y: AcademicYear) -> dict[str, Any]:
         "weeksCount": s.weeks_count,
         "holidays": s.holidays,
         "holidaySource": s.holiday_source,
+        "holidayNames": s.holiday_names,
     }
 
 

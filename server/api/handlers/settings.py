@@ -12,7 +12,7 @@ from core.models.settings import Slot
 _SETTINGS_FIELDS: Final[dict[str, str]] = {
     "startDate": "start_date", "activeDays": "active_days", "acadMin": "acad_min",
     "slotsPerDay": "slots_per_day", "weeksCount": "weeks_count", "holidays": "holidays",
-    "holidaySource": "holiday_source",
+    "holidaySource": "holiday_source", "holidayNames": "holiday_names",
 }
 
 

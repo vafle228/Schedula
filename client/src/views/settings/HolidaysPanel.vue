@@ -12,7 +12,7 @@
  * decides how that list gets filled. Everything is bounded to the semester's
  * own interval (see `dateToCell` / `periodEnd`).
  */
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive } from 'vue'
 import { store } from '../../store/index.js'
 import { fetchYearCalendar, CalendarError, CALENDAR_BASE } from '../../api/calendar.js'
 import {
@@ -27,6 +27,8 @@ const hasStart = computed(() => !!(cfg.value && cfg.value.startDate))
 const host = CALENDAR_BASE.replace(/^https?:\/\//, '')
 
 const cells = computed(() => (cfg.value && cfg.value.holidays ? [...cfg.value.holidays].sort(cellCmp) : []))
+// Persisted holiday labels, `{ "w-d": name }` — populated by the calendar sync.
+const cellNames = computed(() => (cfg.value && cfg.value.holidayNames) || {})
 
 // Day-offs grouped by month — keeps a long list readable instead of a wall of chips.
 const months = computed(() => {
@@ -36,7 +38,7 @@ const months = computed(() => {
     const d = describeCell(cfg.value, c)
     let g = byKey.get(d.ym)
     if (!g) { g = { key: d.ym, label: d.monthLabel, days: [] }; byKey.set(d.ym, g); groups.push(g) }
-    g.days.push({ ...d, name: names.value[c] || '' })
+    g.days.push({ ...d, name: cellNames.value[c] || '' })
   }
   return groups
 })
@@ -48,9 +50,7 @@ const range = computed(() => {
   return { min: c.startDate, max: cellToISO(c, (c.weeksCount || 16) + '-6') }
 })
 
-const ui = reactive({ busy: false, msg: '', err: '', newDate: '' })
-// Holiday names from the last sync — transient, used only for day tooltips.
-const names = ref({})
+const ui = reactive({ busy: false, msg: '', err: '', newDate: '', newName: '' })
 
 function clearMsg() { ui.msg = ''; ui.err = '' }
 
@@ -78,10 +78,9 @@ async function sync() {
       shortN += data.shortDays.filter((s) => dateToCell(cfg.value, s.date)).length
     }
     const { cells: next, named } = holidaysToCells(cfg.value, holidays)
-    const m = {}
-    named.forEach((n) => { m[n.cell] = n.name })
-    names.value = m
-    await saveCells(next, { holidaySource: 'api' })
+    const nameMap = {}
+    named.forEach((n) => { if (n.name) nameMap[n.cell] = n.name })
+    await saveCells(next, { holidaySource: 'api', holidayNames: nameMap })
     ui.msg = `Отмечено ${next.length} ${plural(next.length)} за ${years.join(', ')}.`
       + (shortN > 0 ? ` Предпраздничных сокращённых дней: ${shortN} (в сетке не учитываются).` : '')
   } catch (e) {
@@ -98,20 +97,23 @@ async function addManual() {
   const cell = dateToCell(cfg.value, ui.newDate)
   if (!cell) { ui.err = 'Дата вне учебного семестра или приходится на неучебный день недели.'; return }
   if (cells.value.includes(cell)) { ui.err = 'Этот день уже отмечен как нерабочий.'; return }
-  await saveCells([...cells.value, cell], { holidaySource: 'manual' })
+  const name = ui.newName.trim()
+  const names = name ? { ...cellNames.value, [cell]: name } : cellNames.value
+  await saveCells([...cells.value, cell], { holidaySource: 'manual', holidayNames: names })
   ui.newDate = ''
+  ui.newName = ''
 }
 
 async function removeCell(cell) {
   clearMsg()
-  await saveCells(cells.value.filter((c) => c !== cell))
+  const { [cell]: _dropped, ...rest } = cellNames.value
+  await saveCells(cells.value.filter((c) => c !== cell), { holidayNames: rest })
 }
 
 async function clearAll() {
   clearMsg()
   if (!cells.value.length) return
-  await saveCells([])
-  names.value = {}
+  await saveCells([], { holidayNames: {} })
 }
 
 function plural(n) {
@@ -166,9 +168,17 @@ function plural(n) {
         <input
           v-model="ui.newDate"
           type="date"
-          class="input mono"
+          class="input mono man-date"
           :min="range.min"
           :max="range.max"
+          @keyup.enter="addManual"
+        >
+        <input
+          v-model="ui.newName"
+          type="text"
+          class="input man-name"
+          placeholder="Название (необязательно)"
+          maxlength="60"
           @keyup.enter="addManual"
         >
         <button class="btn-primary" :disabled="!ui.newDate" @click="addManual">Добавить</button>
@@ -180,9 +190,13 @@ function plural(n) {
       <div v-for="g in months" :key="g.key" class="mgroup">
         <span class="mlabel">{{ g.label }}</span>
         <div class="days">
-          <span v-for="day in g.days" :key="day.cell" class="day" :title="day.name || 'Нерабочий день'">
+          <span v-for="day in g.days" :key="day.cell" class="day" :class="{ named: day.name }" :title="day.name || 'Нерабочий день'">
             <span class="day-num mono">{{ day.dom }}</span>
             <span class="day-wd">{{ day.wd }}</span>
+            <template v-if="day.name">
+              <span class="day-sep">·</span>
+              <span class="day-name">{{ day.name }}</span>
+            </template>
             <button class="day-x" title="Убрать" @click="removeCell(day.cell)">✕</button>
           </span>
         </div>
@@ -225,7 +239,9 @@ function plural(n) {
 .src-host { font: 400 11px var(--mono); color: var(--faint); }
 
 .man-add { display: flex; flex-direction: column; gap: 5px; }
-.man-ctl { display: flex; align-items: center; gap: 8px; }
+.man-ctl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.man-date { flex: none; }
+.man-name { flex: 1; min-width: 180px; font-size: 12.5px; }
 .lbl { font-size: 11px; font-weight: 600; color: var(--muted); }
 
 /* day-offs grouped by month */
@@ -257,8 +273,11 @@ function plural(n) {
   border-radius: var(--r-md);
   padding: 3px 4px 3px 8px;
 }
+.day.named { padding-left: 9px; border-color: rgba(194, 69, 54, 0.28); background: rgba(194, 69, 54, 0.05); }
 .day-num { font: 600 12px var(--mono); color: var(--fg); }
 .day-wd { font-size: 10.5px; color: var(--faint); }
+.day-sep { font-size: 10.5px; color: var(--dim); }
+.day-name { font-size: 11.5px; font-weight: 500; color: var(--red); }
 .day-x {
   border: none;
   background: transparent;

@@ -42,6 +42,8 @@ class SemesterSettings:
         holidays: Non-teaching grid cells as ``"week-day"`` (0-based day).
         holiday_source: Where ``holidays`` comes from — ``"api"`` (synced from
             the production calendar) or ``"manual"`` (entered by hand).
+        holiday_names: Optional human label per cell, ``{"week-day": name}``
+            (e.g. the public-holiday name from the sync); cells may be absent.
     """
 
     year_id: int
@@ -54,6 +56,7 @@ class SemesterSettings:
     weeks_count: int
     holidays: list[str] = field(default_factory=list)
     holiday_source: str = "api"
+    holiday_names: dict[str, str] = field(default_factory=dict)
 
 
 # Factory-default grid: 4×2 ac.h + 1×1 ac.h, each carrying its trailing break.
@@ -102,4 +105,5 @@ def default_settings(year_id: int, period: str, ru_start_date: str) -> SemesterS
         weeks_count=DEFAULT_WEEKS_COUNT,
         holidays=[],
         holiday_source="api",
+        holiday_names={},
     )

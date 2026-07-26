@@ -105,7 +105,8 @@ function openGen() {
 }
 
 function openExport() {
-  ui.ex = { step: 'config', view: 'group', scope: 'all' }
+  // Open on the view the grid is already showing (room has no export → group).
+  ui.ex = { step: 'config', view: ui.view === 'teacher' ? 'teacher' : 'group', scope: 'all' }
 }
 
 /* ---------- keyboard ---------- */

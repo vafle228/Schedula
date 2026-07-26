@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS settings (
     weeks_count   INTEGER NOT NULL,
     holidays      TEXT NOT NULL,   -- JSON: ["w-d", ...]
     holiday_source TEXT NOT NULL DEFAULT 'api',  -- 'api' | 'manual'
+    holiday_names TEXT NOT NULL DEFAULT '{}',  -- JSON: {"w-d": name}
     PRIMARY KEY (year_id, period)
 );
 
@@ -191,4 +192,8 @@ def _migrate(connection: sqlite3.Connection) -> None:
         # Pre-existing rows carry hand-set demo holidays — treat them as manual.
         connection.execute(
             "ALTER TABLE settings ADD COLUMN holiday_source TEXT NOT NULL DEFAULT 'manual'"
+        )
+    if "holiday_names" not in settings_cols:
+        connection.execute(
+            "ALTER TABLE settings ADD COLUMN holiday_names TEXT NOT NULL DEFAULT '{}'"
         )

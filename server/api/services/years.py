@@ -73,6 +73,7 @@ class YearService(ServiceBase):
                     slots=[replace(s) for s in template.slots],
                     active_days=list(template.active_days),
                     holidays=list(template.holidays),
+                    holiday_names=dict(template.holiday_names),
                 ))
         return year
 
