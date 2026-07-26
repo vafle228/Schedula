@@ -14,12 +14,12 @@ const MONTHS = ['Январь', 'Февраль', 'Март', 'Апрель', '�
   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
 
 /** Parse an ISO date (`yyyy-mm-dd`, time ignored) as a local midnight Date. */
-export function parseISO(s) {
+function parseISO(s) {
   return new Date(String(s).slice(0, 10) + 'T00:00:00')
 }
 
 /** Parse an ISO (`yyyy-mm-dd`) or Russian (`dd.mm.yyyy`) date, or `null`. */
-export function parseAny(s) {
+function parseAny(s) {
   const v = String(s || '').trim()
   if (/^\d{4}-\d{2}-\d{2}/.test(v)) return parseISO(v)
   const m = v.match(/^(\d{2})\.(\d{2})\.(\d{4})$/)

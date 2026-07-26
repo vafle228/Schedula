@@ -9,7 +9,7 @@
 import { kindHours } from './kinds.js'
 
 /** Effective teacher of an occurrence — the substitute if one is set. */
-export const effTeacher = (l) => l.subBy || l.t
+const effTeacher = (l) => l.subBy || l.t
 
 /** True when a lesson of `kind` fits slot index `s` of the given config. */
 function slotFits(kind, s, cfg) {

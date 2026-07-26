@@ -9,7 +9,7 @@
 const SAT = 46
 const LIGHT = 42
 
-export function hslToHex(h, s, l) {
+function hslToHex(h, s, l) {
   s /= 100
   l /= 100
   const k = (n) => (n + h / 30) % 12
@@ -22,7 +22,7 @@ export function hslToHex(h, s, l) {
 }
 
 /** One random colour at the shared saturation/lightness. */
-export function randomColor() {
+function randomColor() {
   return hslToHex(Math.floor(Math.random() * 360), SAT, LIGHT)
 }
 

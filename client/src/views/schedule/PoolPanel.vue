@@ -1,7 +1,7 @@
 <script setup>
 import { computed, reactive, ref } from 'vue'
 import { store } from '../../store/index.js'
-import { kindOf } from '../../utils/kinds.js'
+import { kindOf, ALL_DAYS } from '../../utils/kinds.js'
 import InfoDot from '../../components/InfoDot.vue'
 import { ui, visible, dateFor, openLf, dragPlaced, unplaceToPool, asgOptions } from './useSchedule.js'
 
@@ -133,8 +133,7 @@ const tree = computed(() => {
 })
 
 function dayLabel(l) {
-  const dayNames = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс']
-  return 'Н' + l.w + ' ' + dayNames[l.d] + ' ' + dateFor(l.w, l.d)
+  return 'Н' + l.w + ' ' + ALL_DAYS[l.d] + ' ' + dateFor(l.w, l.d)
 }
 
 const placedH = computed(() => {
