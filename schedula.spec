@@ -17,7 +17,7 @@ CLIENT_DIST = os.path.join(ROOT, "client", "dist")
 DESKTOP_STATIC = os.path.join(DESKTOP, "static")
 DB_TEMPLATE = os.path.join(SERVER, "schedula.db")
 ENV_FILE = os.path.join(ROOT, ".env")
-ICON = os.path.join(DESKTOP_STATIC, "icon.ico")  # оставьте, если есть иконка окна/exe
+ICON = os.path.join(DESKTOP_STATIC, "icon.ico")  # иконка окна/exe (desktop/static/icon.ico)
 SERVER_TEMPLATES = os.path.join(SERVER, "api", "services", "templates")
 
 # ---------------------------------------------------------------------------
@@ -67,6 +67,11 @@ if os.path.isdir(CLIENT_DIST):
 else:
     raise SystemExit(f"[spec] Не найдена сборка Vue: {CLIENT_DIST}. "
                      f"Сначала выполните `npm run build` в client/.")
+
+# Иконка exe/окна — обязательный ассет.
+if not os.path.isfile(ICON):
+    raise SystemExit(f"[spec] Не найдена иконка: {ICON}. "
+                     f"Положите icon.ico в desktop/static/.")
 
 # desktop-статика (иконка и т.п.) -> 'desktop/static'
 if os.path.isdir(DESKTOP_STATIC):
@@ -127,7 +132,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=ICON if os.path.isfile(ICON) else None,
+    icon=ICON,
 )
 
 coll = COLLECT(
