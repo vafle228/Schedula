@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { store } from '../../store/index.js'
 import { kindOf, ALL_DAYS } from '../../utils/kinds.js'
 import InfoDot from '../../components/InfoDot.vue'
+import TeacherAvatar from '../../components/TeacherAvatar.vue'
 import { ui, visible, dateFor, openLf, dragPlaced, unplaceToPool, asgOptions } from './useSchedule.js'
 
 const searchEl = ref(null)
@@ -96,6 +97,7 @@ const tree = computed(() => {
     return {
       name: d.name,
       teacher: t ? t.name : '',
+      teacherObj: t,
       room: d.room,
       blocks: kinds.map((b) => {
         const K = kindOf(b.kind)
@@ -237,6 +239,7 @@ function onPoolDrop(e) {
       <div v-for="c in tree" :key="c.name" class="course">
         <div class="course-head">
           <span class="course-name">{{ c.name }}</span>
+          <TeacherAvatar v-if="c.teacherObj" :teacher="c.teacherObj" :size="18" />
           <span class="course-teacher mono">{{ c.teacher }}</span>
           <span class="course-room mono" title="аудитория курса по умолчанию">ауд. {{ c.room }}</span>
         </div>

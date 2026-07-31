@@ -15,6 +15,7 @@ export const dirUi = reactive({
   gf: { name: '', course: '1', err: '' },
   tid: 't1',
   q: '',
+  photoErr: '', // ошибка последней загрузки фото на карточке преподавателя
   addTeacher: false,
   addMajor: false,
 })

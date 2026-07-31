@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from typing import Any
 
+from api.services.images import to_data_url
 from core.models.academic_year import AcademicYear
 from core.models.assignment import Assignment
 from core.models.discipline import Discipline, Topic
@@ -82,10 +83,11 @@ def absence(a: Absence) -> dict[str, Any]:
 
 
 def teacher(t: Teacher) -> dict[str, Any]:
+    """Serialize a teacher; the stored photo becomes a renderable data URL."""
     return {
         "id": t.id,
         "name": t.name,
-        "photo": t.photo,
+        "photo": to_data_url(t.photo),
         "normHours": t.norm_hours,
         "c": constraints(t.constraints),
         "absences": [absence(a) for a in t.absences],

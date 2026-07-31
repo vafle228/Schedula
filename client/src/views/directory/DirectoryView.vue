@@ -3,7 +3,9 @@ import { computed, onMounted, onUnmounted } from 'vue'
 import { store } from '../../store/index.js'
 import { confirmDelete } from '../../composables/useConfirm.js'
 import { initials, avatarBg, plural } from '../../utils/format.js'
+import { readPhotoFile } from '../../utils/photo.js'
 import { ALL_DAYS } from '../../utils/kinds.js'
+import TeacherAvatar from '../../components/TeacherAvatar.vue'
 import RoomsEditor from '../../components/RoomsEditor.vue'
 import LessonTypesEditor from '../../components/LessonTypesEditor.vue'
 import AvailabilityEditor from '../../components/AvailabilityEditor.vue'
@@ -142,8 +144,6 @@ const tList = computed(() => tShown.value.map((t) => {
   if (abs) meta.push('отсутствий ' + abs)
   return {
     t,
-    init: t.photo ? '' : initials(t.name),
-    bg: avatarBg(t.photo),
     meta: meta.length ? meta.join(' · ') : 'без отметок',
     status: t.c ? 'заданы' : 'не заданы',
     on: t.id === ui.tid,
@@ -176,12 +176,29 @@ async function delTeacher() {
   ui.tid = store.state.teachers[0] ? store.state.teachers[0].id : null
 }
 
-function uploadPhoto(e) {
+function selectTeacher(id) {
+  ui.tid = id
+  ui.photoErr = ''
+}
+
+/* Файл уходит на сервер как есть: обрезку в квадрат, сжатие и перевод в JPEG
+   делает бэкенд, назад приходит уже готовое фото. */
+async function uploadPhoto(e) {
   const f = e.target.files && e.target.files[0]
+  e.target.value = '' // тот же файл можно выбрать повторно
   if (!f || !curT.value) return
-  const r = new FileReader()
-  r.onload = () => store.setTeacherPhoto(curT.value.id, r.result)
-  r.readAsDataURL(f)
+  ui.photoErr = ''
+  try {
+    await store.setTeacherPhoto(curT.value.id, await readPhotoFile(f))
+  } catch (err) {
+    ui.photoErr = err.message
+  }
+}
+
+function clearPhoto() {
+  if (!curT.value) return
+  ui.photoErr = ''
+  store.setTeacherPhoto(curT.value.id, null)
 }
 
 function normDec() {
@@ -409,9 +426,9 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             :key="row.t.id"
             class="t-row"
             :class="{ on: row.on }"
-            @click="ui.tid = row.t.id"
+            @click="selectTeacher(row.t.id)"
           >
-            <span class="t-avatar" :style="{ background: row.bg }">{{ row.init }}</span>
+            <TeacherAvatar :teacher="row.t" :size="26" :tip="false" />
             <div class="t-info">
               <span class="t-name" :style="{ fontWeight: row.on ? 600 : 400 }">{{ row.t.name }}</span>
               <span class="t-meta">{{ row.meta }}</span>
@@ -442,6 +459,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
                 отсутствий: {{ curAbs.length || 'нет' }}
               </span>
             </div>
+            <div v-if="ui.photoErr" class="form-err"><span>⚠</span><span>{{ ui.photoErr }}</span></div>
           </div>
           <div class="photo-actions">
             <label class="photo-link">
@@ -451,7 +469,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             <span
               v-if="curT.photo"
               class="photo-clear"
-              @click="store.setTeacherPhoto(curT.id, null)"
+              @click="clearPhoto"
             >Убрать</span>
           </div>
         </div>
@@ -573,20 +591,6 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
 .t-row { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: var(--r-md); cursor: pointer; }
 .t-row:hover { background: var(--chip); }
 .t-row.on { background: var(--active); }
-.t-avatar {
-  flex: none;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  color: var(--sub);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9.5px;
-  font-weight: 600;
-  background-size: cover !important;
-  background-position: center !important;
-}
 .t-info { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
 .t-name { font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .t-meta { font-size: 10px; color: var(--faint); }

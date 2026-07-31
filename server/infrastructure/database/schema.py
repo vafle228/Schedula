@@ -63,7 +63,7 @@ CREATE TABLE IF NOT EXISTS topic_types (
 CREATE TABLE IF NOT EXISTS teachers (
     id          INTEGER PRIMARY KEY,
     name        TEXT NOT NULL,
-    photo       TEXT,
+    photo       TEXT,              -- base64 JPEG, no data: prefix, or NULL
     norm_hours  INTEGER NOT NULL DEFAULT 240,
     constraints TEXT               -- JSON: {hard,soft,method,max} or NULL
 );

@@ -9,7 +9,7 @@
  * Nothing here writes user data except `chooseClean()`, which the backend
  * refuses unless the database is still the untouched demo dataset.
  */
-import { reactive, nextTick } from 'vue'
+import { reactive, ref, nextTick } from 'vue'
 import { api } from '../api/index.js'
 import { store } from '../store/index.js'
 import { router } from '../router.js'
@@ -40,9 +40,12 @@ function liveSteps() {
   return STEPS.filter((s) => !s.available || s.available())
 }
 
-let steps = STEPS
+// A ref (not a plain variable) so `total`/`isLast` in OnboardingTour.vue —
+// computed from `ob.steps.length` — actually invalidate when the live step
+// list changes between tour runs, instead of caching the first run's count.
+const stepsRef = ref(STEPS)
 
-const stepAt = (i) => steps[i] || null
+const stepAt = (i) => stepsRef.value[i] || null
 
 /* ---------- persistence ---------- */
 
@@ -146,8 +149,8 @@ export async function startTour() {
 
 /** Resume where the user left off; falls back to the start if that step is gone. */
 export function resumeTour() {
-  steps = liveSteps()
-  const at = steps.findIndex((s) => !state.seen.includes(s.id))
+  stepsRef.value = liveSteps()
+  const at = stepsRef.value.findIndex((s) => !state.seen.includes(s.id))
   state.welcome = false
   runTour(at < 0 ? 0 : at)
 }
@@ -165,14 +168,14 @@ export function openTour() {
 }
 
 function runTour(index) {
-  steps = liveSteps()
+  stepsRef.value = liveSteps()
   state.active = true
   state.index = 0
   goTo(index)
 }
 
 export function next() {
-  if (state.index >= steps.length - 1) return finish()
+  if (state.index >= stepsRef.value.length - 1) return finish()
   goTo(state.index + 1)
 }
 
@@ -181,7 +184,7 @@ export function back() {
 }
 
 export function goToStep(i) {
-  if (i >= 0 && i < steps.length) goTo(i)
+  if (i >= 0 && i < stepsRef.value.length) goTo(i)
 }
 
 export async function finish() {
@@ -242,7 +245,7 @@ export function useOnboarding() {
   return {
     state,
     get steps() {
-      return steps
+      return stepsRef.value
     },
     stepAt,
     next,

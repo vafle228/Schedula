@@ -61,7 +61,8 @@ class Teacher:
     Attributes:
         id: Auto-assigned integer primary key.
         name: Display name, e.g. ``"Орлова И.К."``.
-        photo: Data-URL of the avatar, or ``None``.
+        photo: Avatar as a base64-encoded JPEG payload without a ``data:``
+            prefix (see :mod:`api.services.images`), or ``None``.
         constraints: Scheduling constraints, or ``None`` when unset. A teacher
             with ``None`` constraints counts as "no constraints" in readiness.
         absences: Owned absence periods.

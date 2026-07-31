@@ -5,6 +5,7 @@ import { confirmDelete } from '../../composables/useConfirm.js'
 import { KINDS, ALL_DAYS, kindOf } from '../../utils/kinds.js'
 import ModalWindow from '../../components/ModalWindow.vue'
 import InfoDot from '../../components/InfoDot.vue'
+import TeacherAvatar from '../../components/TeacherAvatar.vue'
 import { ui, dayIdxs, slotsN, bells, statusFor, asgOptions, flash, ST_COLORS, weeksCount, dateFor } from './useSchedule.js'
 
 const lf = computed(() => ui.lf)
@@ -15,11 +16,16 @@ const curAsg = computed(() => {
   if (isEdit.value) {
     if (!editL.value) return null
     const t = store.teacherById(editL.value.t)
-    return { label: editL.value.disc + ', ' + editL.value.g, sub: t ? t.name : '' }
+    return { label: editL.value.disc + ', ' + editL.value.g, sub: t ? t.name : '', teacher: t }
   }
   const a = asgOptions.value[parseInt(lf.value.asg)]
   if (!a) return null
-  return { label: a.discipline.name + ', ' + a.groupName, sub: a.teacherName, a }
+  return {
+    label: a.discipline.name + ', ' + a.groupName,
+    sub: a.teacherName,
+    teacher: store.teacherById(a.teacherId),
+    a,
+  }
 })
 
 const weekOpts = computed(() => Array.from({ length: weeksCount.value }, (_, i) => ({ v: String(i + 1), label: 'Неделя ' + (i + 1) })))
@@ -246,6 +252,7 @@ async function del() {
         </div>
         <div v-else-if="curAsg" class="asg-chip">
           <span class="asg-name">{{ curAsg.label }}</span>
+          <TeacherAvatar v-if="curAsg.teacher" :teacher="curAsg.teacher" :size="20" />
           <span class="asg-sub">{{ curAsg.sub }}</span>
         </div>
       </div>

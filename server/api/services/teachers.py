@@ -7,6 +7,7 @@ from typing import Any
 
 from api.errors import ApiError
 from api.services.base import ServiceBase
+from api.services.images import PhotoError, PhotoTooLargeError, encode_photo
 from core.models.teacher import Teacher, TeacherConstraints
 from core.repositories.assignment_repository import AssignmentRepository
 from core.repositories.lesson_repository import LessonRepository
@@ -31,8 +32,22 @@ class TeacherService(ServiceBase):
         return self._teachers.list_all()
 
     def create(self, name: str, photo: str | None) -> Teacher:
-        """Create a teacher with no constraints or absences."""
-        teacher = Teacher(id=0, name=name, photo=photo, constraints=None, absences=[])
+        """Create a teacher with no constraints or absences.
+
+        Args:
+            name: Display name.
+            photo: Raw upload (``data:`` URL or base64), or ``None``.
+
+        Raises:
+            ApiError: ``400``/``413`` when the photo cannot be stored.
+        """
+        teacher = Teacher(
+            id=0,
+            name=name,
+            photo=self._encode_photo(photo),
+            constraints=None,
+            absences=[],
+        )
         self._teachers.add(teacher)
         return teacher
 
@@ -60,9 +75,17 @@ class TeacherService(ServiceBase):
         self._teachers.delete(teacher_id)
 
     def set_photo(self, teacher_id: int, photo: str | None) -> Teacher:
-        """Set (or clear with ``None``) a teacher's photo."""
+        """Set (or clear with ``None``) a teacher's photo.
+
+        Args:
+            teacher_id: Target teacher.
+            photo: Raw upload (``data:`` URL or base64); ``None`` clears it.
+
+        Raises:
+            ApiError: ``404`` when missing, ``400``/``413`` on a bad photo.
+        """
         teacher = self._get(teacher_id)
-        teacher.photo = photo
+        teacher.photo = self._encode_photo(photo)
         self._teachers.update(teacher)
         return teacher
 
@@ -85,3 +108,20 @@ class TeacherService(ServiceBase):
 
     def _get(self, teacher_id: int) -> Teacher:
         return self._require(self._teachers.get(teacher_id), "Преподаватель не найден")
+
+    @staticmethod
+    def _encode_photo(photo: str | None) -> str | None:
+        """Normalise an upload to the stored JPEG payload, or pass ``None`` on.
+
+        Raises:
+            ApiError: ``413`` when the file is too large, ``400`` when it is not
+                a readable image.
+        """
+        if not photo:
+            return None
+        try:
+            return encode_photo(photo)
+        except PhotoTooLargeError as err:
+            raise ApiError(413, "Файл слишком большой — максимум 12 МБ") from err
+        except PhotoError as err:
+            raise ApiError(400, "Не удалось обработать изображение") from err

@@ -5,6 +5,7 @@ import ModalWindow from '../../components/ModalWindow.vue'
 import InfoDot from '../../components/InfoDot.vue'
 import AvailabilityEditor from '../../components/AvailabilityEditor.vue'
 import AbsenceEditor from '../../components/AbsenceEditor.vue'
+import TeacherAvatar from '../../components/TeacherAvatar.vue'
 import { ui } from './useSchedule.js'
 
 const cur = computed(() => store.teacherById(ui.co.tid) || store.state.teachers[0])
@@ -27,12 +28,16 @@ const list = computed(() => store.state.teachers.map((t) => ({
           :class="{ on: row.on }"
           @click="ui.co = { tid: row.t.id }"
         >
+          <TeacherAvatar :teacher="row.t" :size="22" :tip="false" />
           <span class="side-name" :style="{ fontWeight: row.on ? 600 : 400 }">{{ row.t.name }}</span>
           <span class="side-status mono" :class="row.t.c ? 'ok' : 'warn'">{{ row.status }}</span>
         </div>
       </div>
       <div v-if="cur" class="detail">
-        <div class="d-name">{{ cur.name }}</div>
+        <div class="d-name">
+          <TeacherAvatar :teacher="cur" :size="34" :tip="false" />
+          <span>{{ cur.name }}</span>
+        </div>
         <div class="sect">
           <div class="sect-head">
             <span class="micro">НЕДОСТУПНЫЕ И НЕЖЕЛАТЕЛЬНЫЕ СЛОТЫ</span>
@@ -88,7 +93,7 @@ const list = computed(() => store.state.teachers.map((t) => ({
 .side-status.warn { color: var(--amber); background: rgba(176, 124, 31, 0.08); }
 
 .detail { flex: 1; overflow-y: auto; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
-.d-name { font-size: 14px; font-weight: 600; }
+.d-name { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 600; }
 .sect { display: flex; flex-direction: column; gap: 6px; }
 .sect-head { display: flex; align-items: center; gap: 6px; }
 .abs-sect { border-top: 1px solid rgba(0, 0, 0, 0.08); padding-top: 12px; gap: 10px; }

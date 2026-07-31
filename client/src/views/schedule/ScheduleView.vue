@@ -3,6 +3,7 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { store } from '../../store/index.js'
 import { ALL_DAYS } from '../../utils/kinds.js'
 import InfoDot from '../../components/InfoDot.vue'
+import TeacherAvatar from '../../components/TeacherAvatar.vue'
 import ScheduleGrid from './ScheduleGrid.vue'
 import PoolPanel from './PoolPanel.vue'
 import GenerationPanel from './GenerationPanel.vue'
@@ -248,6 +249,7 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
       <div class="panel grid-panel">
         <div class="grid-head">
           <button class="nav-btn" title="Предыдущая (PgUp)" @click="entStep(-1)">‹</button>
+          <TeacherAvatar v-if="curTeacher" :teacher="curTeacher" :size="24" />
           <select v-model="entVal" class="ent-select">
             <option v-for="o in entOptions" :key="o.v" :value="o.v">{{ o.label }}</option>
           </select>

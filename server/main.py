@@ -13,9 +13,10 @@ import sys
 from pathlib import Path
 from urllib.parse import quote
 
-from bottle import Bottle, HTTPResponse, request, response
+from bottle import Bottle, BaseRequest, HTTPResponse, request, response
 
 from api.errors import ApiError
+from api.services.images import MAX_UPLOAD_BYTES
 from api.http_types import FileResponse
 from api.routes import create_dispatcher
 from infrastructure.database.seed import seed as seed_database
@@ -31,6 +32,12 @@ CORS_HEADERS = {
 
 API_PREFIX = "/api/v1"
 _HTTP_METHODS = ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"]
+
+# Bottle refuses JSON bodies over 100 KB, which a teacher photo upload always
+# exceeds. Allow the largest accepted image plus base64 (4/3) and JSON overhead;
+# oversized uploads are then rejected by the photo service with a Russian
+# message instead of bottle's bare 413.
+BaseRequest.MEMFILE_MAX = MAX_UPLOAD_BYTES * 4 // 3 + 1024 * 1024
 
 
 def _resolve_db_path() -> Path:

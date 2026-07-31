@@ -8,8 +8,9 @@ import AssignMenu from './AssignMenu.vue'
 import CreateDisciplineModal from './CreateDisciplineModal.vue'
 import AddTopicModal from './AddTopicModal.vue'
 import CurriculumExportModal from './CurriculumExportModal.vue'
+import { dirUi } from '../directory/useDirectory.js'
 import {
-  dui, filtered, progress, dragTopicIds, dragH, hoursOf, teacherOfTopic,
+  dui, filtered, planRows, progress, dragTopicIds, dragH, hoursOf, teacherOfTopic,
   openMenuAt, openMenuEv, commitAssign, resetFilters,
   kindLabel, kindColor, dotRadius, topicIndex, KINDS,
 } from './useDistribution.js'
@@ -76,6 +77,42 @@ const groupsList = computed(() => {
       }
     })
 })
+
+/* Empty pool can mean very different things — no specialties/groups yet, no
+   disciplines planned for the active term, or just a strict filter — point
+   the user at the actual fix instead of a generic "nothing found". */
+const emptyHint = computed(() => {
+  if (groupsList.value.length > 0) return null
+  if (!store.state.majors.length) {
+    return {
+      kind: 'noMajors',
+      text: 'Нет ни одной специальности — учебный план строится по группам специальностей. Начните со справочника.',
+    }
+  }
+  if (!store.state.groups.length) {
+    return {
+      kind: 'noGroups',
+      text: 'Специальности есть, но групп пока нет. Добавьте хотя бы одну группу — она сразу появится здесь.',
+    }
+  }
+  if (!planRows.value.length) {
+    return {
+      kind: 'noDiscs',
+      text: 'Для групп этого семестра ещё нет дисциплин. Создайте дисциплину или проверьте выбранный семестр вверху.',
+    }
+  }
+  return { kind: 'filters', text: 'Ничего не найдено по текущим фильтрам.' }
+})
+
+function goCreateMajor() {
+  dirUi.sec = 'majors'
+  dirUi.addMajor = true
+}
+function goCreateGroup() {
+  dirUi.sec = 'majors'
+  const noGroups = store.state.majors.find((m) => !store.state.groups.some((g) => g.majorId === m.id))
+  if (noGroups) dirUi.mid = noGroups.id
+}
 
 function mkDisc(group, d) {
   const total = d.topics.length
@@ -460,11 +497,28 @@ onUnmounted(() => document.removeEventListener('keydown', onKey))
             </div>
           </div>
 
-          <div v-if="groupsList.length === 0" class="pool-empty">
+          <div v-if="emptyHint" class="pool-empty">
             <span class="empty-circle">∅</span>
-            <span>Ничего не найдено</span>
-            <button class="btn" style="font-size: 12px; padding: 5px 12px" @click="resetFilters">
+            <span>{{ emptyHint.text }}</span>
+            <button v-if="emptyHint.kind === 'filters'" class="btn" style="font-size: 12px; padding: 5px 12px" @click="resetFilters">
               Сбросить поиск и фильтры
+            </button>
+            <router-link
+              v-else-if="emptyHint.kind === 'noMajors'"
+              class="btn"
+              style="font-size: 12px; padding: 5px 12px"
+              to="/directory"
+              @click="goCreateMajor"
+            >Создать специальность в Справочниках</router-link>
+            <router-link
+              v-else-if="emptyHint.kind === 'noGroups'"
+              class="btn"
+              style="font-size: 12px; padding: 5px 12px"
+              to="/directory"
+              @click="goCreateGroup"
+            >Добавить группу в Справочниках</router-link>
+            <button v-else class="btn" style="font-size: 12px; padding: 5px 12px" @click="openCreateDisc">
+              ＋ Создать дисциплину
             </button>
           </div>
         </div>

@@ -2,26 +2,37 @@
 import { reactive, computed } from 'vue'
 import { store } from '../../store/index.js'
 import { initials, avatarBg } from '../../utils/format.js'
+import { readPhotoFile } from '../../utils/photo.js'
 import ModalWindow from '../../components/ModalWindow.vue'
 
 const emit = defineEmits(['close', 'created'])
 
-const form = reactive({ name: '', photo: null })
+const form = reactive({ name: '', photo: null, err: '' })
 const valid = computed(() => !!form.name.trim())
 const init = computed(() => (form.photo ? '' : initials(form.name) || '—'))
 
-function onPhoto(e) {
+/* Превью показываем оригиналом; в квадратный JPEG его обрежет сервер. */
+async function onPhoto(e) {
   const f = e.target.files && e.target.files[0]
+  e.target.value = '' // тот же файл можно выбрать повторно
   if (!f) return
-  const r = new FileReader()
-  r.onload = () => { form.photo = r.result }
-  r.readAsDataURL(f)
+  try {
+    form.photo = await readPhotoFile(f)
+    form.err = ''
+  } catch (err) {
+    form.photo = null
+    form.err = err.message
+  }
 }
 
 async function save() {
   if (!valid.value) return
-  const t = await store.createTeacher({ name: form.name.trim(), photo: form.photo })
-  emit('created', t)
+  try {
+    const t = await store.createTeacher({ name: form.name.trim(), photo: form.photo })
+    emit('created', t)
+  } catch (err) {
+    form.err = err.message
+  }
 }
 </script>
 
@@ -40,8 +51,8 @@ async function save() {
         <div class="photo-info">
           <span class="lbl">Фото</span>
           <span class="photo-hint">
-            Нажмите на кружок, чтобы загрузить. Без фото используются инициалы —
-            фото можно заменить в любой момент на карточке.
+            Нажмите на кружок, чтобы загрузить. Фото обрежется по центру в квадрат
+            и сожмётся. Без фото используются инициалы — заменить можно на карточке.
           </span>
           <span v-if="form.photo" class="photo-clear" @click="form.photo = null">Убрать фото</span>
         </div>
@@ -50,6 +61,7 @@ async function save() {
         <span class="lbl">ФИО</span>
         <input v-model="form.name" class="input" placeholder="Фамилия И. О.">
       </div>
+      <div v-if="form.err" class="form-err"><span>⚠</span><span>{{ form.err }}</span></div>
       <span class="hint">Доступность и периоды отсутствия заполняются на карточке после создания.</span>
     </div>
     <template #footer>
