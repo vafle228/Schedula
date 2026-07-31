@@ -7,12 +7,15 @@ matches what the frontend used to get from its in-memory mock.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 from core.models.academic_year import AcademicYear, YearStatus
 from core.models.assignment import Assignment
 from core.models.discipline import Discipline, Topic
 from core.models.group import Group
 from core.models.lesson import Lesson
 from core.models.major import Major
+from core.models.onboarding import TOUR_VERSION, OnboardingState, OnboardingStatus
 from core.models.room import Room
 from core.models.settings import default_settings
 from core.models.teacher import Absence, AbsenceType, Teacher, TeacherConstraints
@@ -64,29 +67,32 @@ def _constraints(
     return TeacherConstraints(hard=hard, soft=soft, method=method, max_per_day=max_per_day)
 
 
-# (key, name, constraints | None, [(type, label), ...])
-_TEACHERS: list[tuple[str, str, TeacherConstraints | None, list[tuple[str, str]]]] = [
+# (key, name, constraints | None, [(type, date_from, date_to), ...])
+# Absence dates are ISO and fall inside the demo active year (2026/27).
+_TEACHERS: list[
+    tuple[str, str, TeacherConstraints | None, list[tuple[str, str, str]]]
+] = [
     ("t1", "Орлова И.К.", _constraints(["0-6", "1-6"], [], 2, 4),
-     [("vacation", "01–14 сентября"), ("trip", "20–22 октября")]),
+     [("vacation", "2026-09-01", "2026-09-14"), ("trip", "2026-10-20", "2026-10-22")]),
     ("t2", "Ким Д.С.", _constraints(["0-0", "0-1"], ["4-5", "4-6"], None, 3), []),
     ("t3", "Стеклов П.А.", _constraints([], ["0-0"], 4, 4),
-     [("vacation", "10–24 марта")]),
+     [("vacation", "2027-03-10", "2027-03-24")]),
     ("t4", "Белов А.Н.", None, []),
     ("t5", "Юсупова Р.М.", _constraints(["3-5", "3-6", "4-5", "4-6"], [], None, None),
-     [("vacation", "07–20 октября"), ("sick", "03–05 ноября")]),
+     [("vacation", "2026-10-07", "2026-10-20"), ("sick", "2026-11-03", "2026-11-05")]),
     ("t6", "Дроздова Е.В.", _constraints([], ["0-5", "0-6"], None, 4), []),
     ("t7", "Гарин О.Л.", None, []),
     ("t8", "Мельник С.С.", _constraints(["2-0", "2-1", "2-2"], [], None, 4),
-     [("vacation", "01–14 апреля")]),
+     [("vacation", "2027-04-01", "2027-04-14")]),
     ("t9", "Ахматова Л.Р.", None, []),
     ("t10", "Козлов В.П.", None, []),
 ]
 
-_ROOMS: list[tuple[str, str, int]] = [
-    ("214", "Лекционная", 80), ("118", "Лекционная", 120),
-    ("301", "Лекционная", 60), ("305", "Лекционная", 40),
-    ("220", "Лекционная", 50), ("к.412", "Комп. класс", 25),
-    ("к.413", "Комп. класс", 25), ("лаб.2", "Лаборатория", 20),
+_ROOMS: list[tuple[str, str]] = [
+    ("214", "Лекционная"), ("118", "Лекционная"),
+    ("301", "Лекционная"), ("305", "Лекционная"),
+    ("220", "Лекционная"), ("к.412", "Комп. класс"),
+    ("к.413", "Комп. класс"), ("лаб.2", "Лаборатория"),
 ]
 
 # (key, code, name)
@@ -217,11 +223,14 @@ def seed(uow: SqliteUnitOfWork) -> None:
         t = Teacher(id=0, name=name, photo=None, constraints=constraints)
         uow.teachers.add(t)
         teacher_ids[key] = t.id
-        for atype, label in absences_data:
-            uow.absences.add(Absence(id=0, teacher_id=t.id, type=AbsenceType(atype), label=label))
+        for atype, date_from, date_to in absences_data:
+            uow.absences.add(Absence(
+                id=0, teacher_id=t.id, type=AbsenceType(atype),
+                date_from=date_from, date_to=date_to,
+            ))
 
-    for room_id, room_type, capacity in _ROOMS:
-        uow.rooms.add(Room(room_id, room_type, capacity))
+    for room_id, room_type in _ROOMS:
+        uow.rooms.add(Room(room_id, room_type))
 
     major_ids: dict[str, int] = {}
     for key, code, name in _MAJORS:
@@ -314,4 +323,22 @@ def seed(uow: SqliteUnitOfWork) -> None:
         for kind, topic_name, hours in topics:
             _topic(discipline, kind, topic_name, hours)
 
+    _mark_demo_seeded(uow)
     uow.commit()
+
+
+def _mark_demo_seeded(uow: SqliteUnitOfWork) -> None:
+    """Record that everything in this database is demo content.
+
+    The row counts taken here are the fingerprint the onboarding service checks
+    before it will ever offer to wipe the demo dataset — the moment the user
+    adds or removes anything the counts diverge and the wipe is refused. This is
+    the only place ``demo_seeded`` is set.
+    """
+    uow.onboarding.save(OnboardingState(
+        status=OnboardingStatus.PENDING,
+        version=TOUR_VERSION,
+        demo_seeded=True,
+        seed_counts=uow.workspace.counts(),
+        updated_at=datetime.now(UTC).isoformat(timespec="seconds"),
+    ))

@@ -27,7 +27,7 @@ class RoomService(ServiceBase):
             for room in self._rooms.list_all()
         ]
 
-    def create(self, room_id: str, room_type: str, capacity: int) -> Room:
+    def create(self, room_id: str, room_type: str) -> Room:
         """Create a classroom.
 
         Raises:
@@ -35,7 +35,7 @@ class RoomService(ServiceBase):
         """
         if any(r.id.lower() == room_id.lower() for r in self._rooms.list_all()):
             raise ApiError(409, "Аудитория уже есть")
-        room = Room(id=room_id, type=room_type, capacity=capacity)
+        room = Room(id=room_id, type=room_type)
         self._rooms.add(room)
         return room
 

@@ -1,12 +1,15 @@
 """Lesson-graph synchronisation — a faithful port of the client's ``sync.js``.
 
-Reconciles the auto-generated lesson slots of a topic with its assignment
-state and builds the flat lesson views the schedule engine consumes. Shared by
-the topic, assignment and schedule services as an injected collaborator.
+Reconciles a topic's lessons with its assignment state and builds the flat
+lesson views the schedule engine consumes. Shared by the topic, assignment
+and schedule services as an injected collaborator.
 
 Rules:
-  - an assigned topic owns ``pairs_per_week`` lesson slots (auto = hours ÷ 2 ÷
-    weeks);
+  - assigning a topic never materialises lesson rows by itself — lessons only
+    ever come from an explicit «+ занятие», sync just keeps the ones that
+    already exist in step with the assignment;
+  - an assigned topic's plan cap is ``pairs_per_week`` (hours ÷ 2 ÷ weeks);
+    reconciliation trims surplus unplaced auto lessons above that cap;
   - unassigning drops pool pairs but keeps already-placed ones as orphans;
   - reassigning moves every pair of the topic to the new teacher.
 """
@@ -18,8 +21,7 @@ import math
 from api.services.base import ServiceBase
 from api.services.conflicts import EnrichedLesson
 from core.models.assignment import Assignment
-from core.models.discipline import Discipline, Topic
-from core.models.lesson import Lesson
+from core.models.discipline import Topic
 from core.models.settings import SemesterSettings
 from core.repositories.assignment_repository import AssignmentRepository
 from core.repositories.discipline_repository import (
@@ -28,7 +30,6 @@ from core.repositories.discipline_repository import (
 )
 from core.repositories.group_repository import GroupRepository
 from core.repositories.lesson_repository import LessonRepository
-from core.repositories.room_repository import RoomRepository
 from core.repositories.settings_repository import SettingsRepository
 from core.repositories.teacher_repository import TeacherRepository
 
@@ -45,7 +46,6 @@ class LessonSyncService(ServiceBase):
         assignments: AssignmentRepository,
         settings: SettingsRepository,
         lessons: LessonRepository,
-        rooms: RoomRepository,
         teachers: TeacherRepository,
     ) -> None:
         self._topics = topics
@@ -54,7 +54,6 @@ class LessonSyncService(ServiceBase):
         self._assignments = assignments
         self._settings = settings
         self._lessons = lessons
-        self._rooms = rooms
         self._teachers = teachers
 
     @staticmethod
@@ -121,6 +120,10 @@ class LessonSyncService(ServiceBase):
             lesson.period = discipline.period
             self._lessons.update(lesson)
 
+        # Auto lessons are no longer materialised on assignment — only what the
+        # user explicitly authors (manual=True) or has already placed sticks
+        # around. This just trims any surplus pool slots left over from a
+        # lowered plan (legacy auto lessons predating this rule).
         auto = [l for l in own if not l.manual]
         placed_n = len([l for l in auto if l.day is not None])
         target = max(target_pairs, placed_n)
@@ -130,27 +133,6 @@ class LessonSyncService(ServiceBase):
             pool = [l for l in auto if l.day is None]
             for lesson in pool[-surplus:]:
                 self._lessons.delete(lesson.id)
-
-        have = len([
-            l for l in self._lessons.list_by_group_topic(group_id, topic_id)
-            if not l.manual
-        ])
-        for _ in range(have, target):
-            lesson = Lesson(
-                id=0,
-                year_id=discipline.year_id,
-                topic_id=topic_id,
-                discipline_id=discipline.id,
-                group_id=group_id,
-                teacher_id=assignment.teacher_id,
-                room_id=self._default_room(topic, discipline, group_id),
-                kind=topic.kind,
-                period=discipline.period,
-                week=None, day=None, slot=None, sub_by=None,
-                manual=False, ni=0, nt=target,
-                topic_label="", question="",
-            )
-            self._lessons.add(lesson)
 
         ni = 0
         for lesson in self._lessons.list_by_group_topic(group_id, topic_id):
@@ -185,21 +167,3 @@ class LessonSyncService(ServiceBase):
             )
             for lesson in self._lessons.list_by_year_period(year_id, period)
         ]
-
-    def _default_room(
-        self, topic: Topic, discipline: Discipline, group_id: int
-    ) -> str:
-        """Pick a room for a fresh pool lesson: reuse a sibling's, else by kind."""
-        for lesson in self._lessons.list_by_year(discipline.year_id):
-            if (
-                lesson.group_id == group_id
-                and lesson.discipline_id == discipline.id
-                and lesson.room_id
-            ):
-                return lesson.room_id
-        wanted = "Комп. класс" if topic.kind == "prac" else "Лекционная"
-        rooms = self._rooms.list_all()
-        for room in rooms:
-            if room.type == wanted:
-                return room.id
-        return rooms[0].id if rooms else ""

@@ -9,6 +9,7 @@ from api.handlers.exports import ExportHandlers
 from api.handlers.groups import GroupHandlers
 from api.handlers.lessons import LessonHandlers
 from api.handlers.majors import MajorHandlers
+from api.handlers.onboarding import OnboardingHandlers
 from api.handlers.rooms import RoomHandlers
 from api.handlers.schedule import ScheduleHandlers
 from api.handlers.settings import SettingsHandlers
@@ -25,6 +26,7 @@ __all__ = [
     "GroupHandlers",
     "LessonHandlers",
     "MajorHandlers",
+    "OnboardingHandlers",
     "RoomHandlers",
     "ScheduleHandlers",
     "SettingsHandlers",

@@ -15,6 +15,7 @@ from api.services.exports import ExportService
 from api.services.groups import GroupService
 from api.services.lessons import LessonService
 from api.services.majors import MajorService
+from api.services.onboarding import OnboardingService
 from api.services.rollover import RolloverService
 from api.services.rooms import RoomService
 from api.services.schedule import ScheduleService
@@ -34,6 +35,7 @@ __all__ = [
     "LessonService",
     "LessonSyncService",
     "MajorService",
+    "OnboardingService",
     "RolloverService",
     "RoomService",
     "ScheduleService",

@@ -1,6 +1,8 @@
 <script setup>
 import AppSidebar from './components/AppSidebar.vue'
 import ConfirmDialog from './components/ConfirmDialog.vue'
+import OnboardingWelcome from './components/OnboardingWelcome.vue'
+import OnboardingTour from './components/OnboardingTour.vue'
 </script>
 
 <template>
@@ -10,6 +12,8 @@ import ConfirmDialog from './components/ConfirmDialog.vue'
       <router-view />
     </div>
     <ConfirmDialog />
+    <OnboardingWelcome />
+    <OnboardingTour />
   </div>
 </template>
 

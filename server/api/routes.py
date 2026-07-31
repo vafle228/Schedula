@@ -22,6 +22,7 @@ from api.handlers import (
     GroupHandlers,
     LessonHandlers,
     MajorHandlers,
+    OnboardingHandlers,
     RoomHandlers,
     ScheduleHandlers,
     SettingsHandlers,
@@ -39,6 +40,7 @@ from api.routers import (
     register_group_routes,
     register_lesson_routes,
     register_major_routes,
+    register_onboarding_routes,
     register_room_routes,
     register_schedule_routes,
     register_settings_routes,
@@ -56,6 +58,7 @@ from api.services import (
     LessonService,
     LessonSyncService,
     MajorService,
+    OnboardingService,
     RolloverService,
     RoomService,
     ScheduleService,
@@ -89,9 +92,11 @@ def create_dispatcher(
         assignments=uow.assignments,
         settings=uow.settings,
         lessons=uow.lessons,
-        rooms=uow.rooms,
         teachers=uow.teachers,
     )
+
+    # Shared: the onboarding "clean slate" path reuses year creation verbatim.
+    years = YearService(uow.years, uow.settings, uow.lessons)
 
     router = Router()
     register_settings_routes(
@@ -100,8 +105,14 @@ def create_dispatcher(
     register_year_routes(
         router,
         YearHandlers(
-            YearService(uow.years, uow.settings, uow.lessons),
+            years,
             RolloverService(years=uow.years, disciplines=uow.disciplines),
+        ),
+    )
+    register_onboarding_routes(
+        router,
+        OnboardingHandlers(
+            OnboardingService(uow.onboarding, uow.workspace, years)
         ),
     )
     register_topic_type_routes(

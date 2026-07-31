@@ -10,6 +10,7 @@ from api.routers.exports import register_export_routes
 from api.routers.groups import register_group_routes
 from api.routers.lessons import register_lesson_routes
 from api.routers.majors import register_major_routes
+from api.routers.onboarding import register_onboarding_routes
 from api.routers.rooms import register_room_routes
 from api.routers.schedule import register_schedule_routes
 from api.routers.settings import register_settings_routes
@@ -27,6 +28,7 @@ __all__ = [
     "register_group_routes",
     "register_lesson_routes",
     "register_major_routes",
+    "register_onboarding_routes",
     "register_room_routes",
     "register_schedule_routes",
     "register_settings_routes",

@@ -2,11 +2,18 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { store } from '../store/index.js'
+import { useOnboarding } from '../composables/useOnboarding.js'
 import iconUrl from '../static/icon.png'
 
 const route = useRoute()
 const isOn = (name) => route.name === name
 const orphanN = computed(() => store.scheduleAnalysis.value.orphanN)
+
+const ob = useOnboarding()
+/* Nudge the button while the tour has never been finished. */
+const obUnseen = computed(
+  () => ob.state.status === 'pending' || ob.state.status === 'in_progress',
+)
 
 const collapsed = ref(localStorage.getItem('sidebarCollapsed') === '1')
 const toggle = () => { collapsed.value = !collapsed.value }
@@ -79,6 +86,20 @@ watch(collapsed, (v) => localStorage.setItem('sidebarCollapsed', v ? '1' : '0'))
     <span class="spacer"></span>
 
     <div class="nav">
+      <button
+        class="rail-item rail-btn"
+        title="Обучение — пройти знакомство с программой заново"
+        @click="ob.openTour()"
+      >
+        <svg class="ico" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M9.2 9.3a2.9 2.9 0 1 1 3.9 2.7c-.7.3-1.1.9-1.1 1.6v.4" />
+          <path d="M12 17.2h.01" />
+        </svg>
+        <span class="cap">Обучение</span>
+        <span v-if="obUnseen" class="dot"></span>
+      </button>
+
       <router-link
         to="/settings"
         class="rail-item"
@@ -186,6 +207,32 @@ watch(collapsed, (v) => localStorage.setItem('sidebarCollapsed', v ? '1' : '0'))
   justify-content: center;
   gap: 0;
   padding: 0;
+}
+
+/* The tour opens an overlay rather than a route, so it is a button — reset the
+   UA styles that <a> does not carry. */
+.rail-btn {
+  border: none;
+  background: none;
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dot {
+  margin-left: auto;
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--blue);
+}
+.rail.collapsed .dot {
+  position: absolute;
+  top: 6px;
+  right: 12px;
+  margin-left: 0;
 }
 
 .cap {

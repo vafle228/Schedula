@@ -16,6 +16,10 @@ as JSON ``TEXT`` and hydrated by the repositories.
 
 Insertion order (which several list endpoints preserve) is read back via each
 table's implicit ``rowid``; no explicit ordering column is needed.
+
+``onboarding`` is the one table outside the academic-year scope: a single row
+(``CHECK (id = 1)``) holding the first-run tour progress plus the provenance
+markers that decide whether the demo dataset may still be wiped.
 """
 
 from __future__ import annotations
@@ -74,8 +78,7 @@ CREATE TABLE IF NOT EXISTS absences (
 
 CREATE TABLE IF NOT EXISTS rooms (
     id       TEXT PRIMARY KEY,
-    type     TEXT NOT NULL,
-    capacity INTEGER NOT NULL
+    type     TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS majors (
@@ -140,6 +143,18 @@ CREATE TABLE IF NOT EXISTS lessons (
     topic_label   TEXT NOT NULL DEFAULT '',
     question      TEXT NOT NULL DEFAULT '',
     number        INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS onboarding (
+    id              INTEGER PRIMARY KEY CHECK (id = 1),  -- singleton row
+    status          TEXT NOT NULL DEFAULT 'pending',     -- pending|in_progress|completed|skipped
+    version         INTEGER NOT NULL DEFAULT 1,          -- tour content version
+    current_step    TEXT NOT NULL DEFAULT '',            -- step id, for resume
+    completed_steps TEXT NOT NULL DEFAULT '[]',          -- JSON: ["step-id", ...]
+    data_choice     TEXT,                                -- 'demo' | 'clean' | NULL
+    demo_seeded     INTEGER NOT NULL DEFAULT 0,          -- 1 = this database was built by seed()
+    seed_counts     TEXT NOT NULL DEFAULT '{}',          -- JSON: row counts captured at seed time
+    updated_at      TEXT NOT NULL DEFAULT ''
 );
 
 CREATE INDEX IF NOT EXISTS idx_groups_year ON groups(year_id);
@@ -219,3 +234,9 @@ def _migrate(connection: sqlite3.Connection) -> None:
         connection.execute(
             "ALTER TABLE absences ADD COLUMN date_to TEXT NOT NULL DEFAULT ''"
         )
+    room_cols = {
+        row[1]
+        for row in connection.execute("PRAGMA table_info(rooms)").fetchall()
+    }
+    if "capacity" in room_cols:
+        connection.execute("ALTER TABLE rooms DROP COLUMN capacity")

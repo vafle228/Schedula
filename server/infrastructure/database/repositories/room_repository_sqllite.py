@@ -9,7 +9,7 @@ from core.repositories.room_repository import RoomRepository
 
 
 def _row_to_room(row: sqlite3.Row) -> Room:
-    return Room(id=row["id"], type=row["type"], capacity=row["capacity"])
+    return Room(id=row["id"], type=row["type"])
 
 
 class RoomRepositorySqlLite(RoomRepository):
@@ -30,15 +30,15 @@ class RoomRepositorySqlLite(RoomRepository):
 
     def add(self, room: Room) -> None:
         self._conn.execute(
-            "INSERT INTO rooms (id, type, capacity) VALUES (?, ?, ?)",
-            (room.id, room.type, room.capacity),
+            "INSERT INTO rooms (id, type) VALUES (?, ?)",
+            (room.id, room.type),
         )
         self._conn.commit()
 
     def update(self, room: Room) -> None:
         self._conn.execute(
-            "UPDATE rooms SET type = ?, capacity = ? WHERE id = ?",
-            (room.type, room.capacity, room.id),
+            "UPDATE rooms SET type = ? WHERE id = ?",
+            (room.type, room.id),
         )
         self._conn.commit()
 

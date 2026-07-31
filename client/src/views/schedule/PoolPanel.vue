@@ -56,49 +56,69 @@ async function submitAdd(b) {
   if (created) ui.flashId = created.id
 }
 
-/** Entity lessons grouped course → block(kind) → lessons, with hour accounting. */
+/**
+ * Entity lessons grouped course → block(kind) → lessons, with hour accounting.
+ * Blocks are seeded from the entity's assignments first — so a freshly
+ * assigned topic gets a «+ занятие» slot before anything is authored — then
+ * filled in with whatever lessons already exist for it.
+ */
 const tree = computed(() => {
-  const byDisc = {}
-  visible.value.forEach((l) => {
-    const d = (byDisc[l.disc] = byDisc[l.disc] || { name: l.disc, t: l.t, room: l.room, lessons: [] })
-    d.lessons.push(l)
-  })
-  return Object.values(byDisc).map((d) => {
-    const t = store.teacherById(d.t)
-    const byKind = {}
-    d.lessons.forEach((l) => {
-      const b = (byKind[l.kind] = byKind[l.kind] || { kind: l.kind, lessons: [] })
-      b.lessons.push(l)
+  const period = store.state.period
+  const discs = {}
+  const disc = (name) => (discs[name] = discs[name] || { name, room: '', kinds: {} })
+  const kindBucket = (d, kind, disciplineId, teacherId, topicId) => (
+    d.kinds[kind] = d.kinds[kind] || { kind, disciplineId, teacherId, topicId, groupId: null, groups: new Set(), lessons: [] }
+  )
+
+  if (ui.view !== 'room') {
+    store.assignedTopics(period).forEach(({ topic, discipline, group, teacherId }) => {
+      const matches = ui.view === 'group' ? group.name === ui.ent.group : teacherId === ui.ent.teacher
+      if (!matches) return
+      const d = disc(discipline.name)
+      const b = kindBucket(d, topic.kind, discipline.id, teacherId, topic.id)
+      if (b.groupId == null) b.groupId = group.id
+      b.groups.add(group.name)
     })
+  }
+
+  visible.value.forEach((l) => {
+    const d = disc(l.disc)
+    if (l.room) d.room = l.room
+    const b = kindBucket(d, l.kind, l.disciplineId, l.t, l.topicId)
+    if (b.groupId == null) b.groupId = l.groupId
+    b.groups.add(l.g)
+    b.lessons.push(l)
+  })
+
+  return Object.values(discs).map((d) => {
+    const kinds = Object.values(d.kinds)
+    const t = kinds.length ? store.teacherById(kinds[0].teacherId) : null
     return {
       name: d.name,
       teacher: t ? t.name : '',
       room: d.room,
-      blocks: Object.values(byKind).map((b) => {
+      blocks: kinds.map((b) => {
         const K = kindOf(b.kind)
         const h = K.acHours
         const authored = b.lessons.length
         const placed = b.lessons.filter((l) => l.d != null).length
-        const first = b.lessons[0]
         // The plan cap comes from the topic's hours (one topic per disc + kind).
         // A missing topic (orphaned lesson) has no plan — show what's authored.
-        const topicId = first ? first.topicId : null
-        const plan = topicId != null ? store.topicPlanCount(topicId) : 0
+        const plan = b.topicId != null ? store.topicPlanCount(b.topicId) : 0
         const planN = plan || Math.max(authored, 1)
         const full = authored >= planN
         const key = d.name + '|' + b.kind
-        const groups = [...new Set(b.lessons.map((l) => l.g))].join(' + ')
         return {
           key,
           name: K.label,
           dot: K.dot,
           color: K.dark,
-          groupsLabel: groups + ' · ' + h + ' ак.ч',
+          groupsLabel: [...b.groups].join(' + ') + ' · ' + h + ' ак.ч',
           counts: authored + ' / ' + planN + ' зан.',
           open: !collapsed[key],
-          disciplineId: first ? first.disciplineId : null,
-          groupId: first ? first.groupId : null,
-          teacherId: first ? first.t : null,
+          disciplineId: b.disciplineId,
+          groupId: b.groupId,
+          teacherId: b.teacherId,
           full,
           ctx: d.name + ' · ' + K.label + ' · ' + (t ? t.name : ''),
           placedH: placed * h + 'ч',

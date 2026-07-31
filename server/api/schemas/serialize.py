@@ -15,6 +15,7 @@ from core.models.discipline import Discipline, Topic
 from core.models.group import Group
 from core.models.lesson import Lesson
 from core.models.major import Major
+from core.models.onboarding import OnboardingState
 from core.models.room import Room
 from core.models.settings import SemesterSettings
 from core.models.teacher import Absence, Teacher, TeacherConstraints
@@ -92,7 +93,7 @@ def teacher(t: Teacher) -> dict[str, Any]:
 
 
 def room(r: Room, used: int | None = None) -> dict[str, Any]:
-    data: dict[str, Any] = {"id": r.id, "type": r.type, "capacity": r.capacity}
+    data: dict[str, Any] = {"id": r.id, "type": r.type}
     if used is not None:
         data["used"] = used
     return data
@@ -167,3 +168,19 @@ def lesson(l: Lesson) -> dict[str, Any]:
         "question": l.question,
         "number": l.number,
     }
+
+
+def onboarding(
+    o: OnboardingState, *, can_start_clean: bool | None = None
+) -> dict[str, Any]:
+    data: dict[str, Any] = {
+        "status": str(o.status),
+        "version": o.version,
+        "currentStep": o.current_step,
+        "completedSteps": list(o.completed_steps),
+        "dataChoice": str(o.data_choice) if o.data_choice else None,
+        "updatedAt": o.updated_at,
+    }
+    if can_start_clean is not None:
+        data["canStartClean"] = can_start_clean
+    return data

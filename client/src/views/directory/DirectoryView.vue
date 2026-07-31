@@ -1,5 +1,5 @@
 <script setup>
-import { reactive, computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted } from 'vue'
 import { store } from '../../store/index.js'
 import { confirmDelete } from '../../composables/useConfirm.js'
 import { initials, avatarBg, plural } from '../../utils/format.js'
@@ -10,17 +10,7 @@ import AvailabilityEditor from '../../components/AvailabilityEditor.vue'
 import AbsenceEditor from '../../components/AbsenceEditor.vue'
 import AddTeacherModal from './AddTeacherModal.vue'
 import AddMajorModal from './AddMajorModal.vue'
-
-const ui = reactive({
-  sec: 'majors', // majors | teachers | rooms
-  mid: 'm1',
-  mq: '',
-  gf: { name: '', course: '1', err: '' },
-  tid: 't1',
-  q: '',
-  addTeacher: false,
-  addMajor: false,
-})
+import { dirUi as ui } from './useDirectory.js'
 
 const secBtns = computed(() => [
   { k: 'types', label: 'Типы занятий · ' + store.state.topicTypes.length },

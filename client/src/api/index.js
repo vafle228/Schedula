@@ -81,6 +81,12 @@ export const api = {
   /* conflicts */
   getConflicts: (yearId, period) => request('GET', `/schedule/conflicts?yearId=${yearId}&period=${period}`),
 
+  /* onboarding (first-run tour) */
+  getOnboarding: () => request('GET', '/onboarding'),
+  patchOnboarding: (body) => request('PATCH', '/onboarding', body),
+  restartOnboarding: () => request('POST', '/onboarding/restart'),
+  startCleanWorkspace: () => request('POST', '/onboarding/start-clean'),
+
   /* exports */
   exportCurriculum: (yearId, period) => request('POST', '/exports/curriculum', { yearId, period }),
   exportSchedule: (body) => request('POST', '/exports/schedule', body),

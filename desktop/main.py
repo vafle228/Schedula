@@ -45,7 +45,7 @@ if __name__ == "__main__":
         "Schedula",
         url="http://127.0.0.1:8000/",
         js_api=js_api,
-        min_size=(1500, 800))
+        min_size=(1600, 800))
     js_api._window = window
 
     webview.start(gui="edgechromium" if sys.platform == "win32" else "qt")

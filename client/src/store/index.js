@@ -254,6 +254,22 @@ export const store = {
     state.loaded = true
   },
 
+  /**
+   * Re-fetch everything from scratch, discarding in-memory history.
+   * Needed after the onboarding "clean slate" reset, which invalidates every
+   * id the undo/redo stacks still reference.
+   */
+  async reloadAll() {
+    state.loaded = false
+    state.planUndo = []
+    state.planRedo = []
+    state.schedUndo = []
+    state.schedRedo = []
+    state.newIds = []
+    state.period = 'fall'
+    await this.init()
+  },
+
   /** Switch the working academic year and re-scope the whole app to it. */
   async setWorkingYear(id) {
     if (id == null || state.yearId === id) return

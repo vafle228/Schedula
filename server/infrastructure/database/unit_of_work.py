@@ -34,6 +34,9 @@ from infrastructure.database.repositories.lesson_repository_sqllite import (
 from infrastructure.database.repositories.major_repository_sqllite import (
     MajorRepositorySqlLite,
 )
+from infrastructure.database.repositories.onboarding_repository_sqllite import (
+    OnboardingRepositorySqlLite,
+)
 from infrastructure.database.repositories.room_repository_sqllite import (
     RoomRepositorySqlLite,
 )
@@ -45,6 +48,9 @@ from infrastructure.database.repositories.teacher_repository_sqllite import (
 )
 from infrastructure.database.repositories.topic_type_repository_sqllite import (
     TopicTypeRepositorySqlLite,
+)
+from infrastructure.database.repositories.workspace_repository_sqllite import (
+    WorkspaceRepositorySqlLite,
 )
 from infrastructure.database.schema import initialize
 
@@ -74,6 +80,8 @@ class SqliteUnitOfWork:
         self.topics = TopicRepositorySqlLite(self._conn)
         self.assignments = AssignmentRepositorySqlLite(self._conn)
         self.lessons = LessonRepositorySqlLite(self._conn)
+        self.onboarding = OnboardingRepositorySqlLite(self._conn)
+        self.workspace = WorkspaceRepositorySqlLite(self._conn)
 
     @property
     def connection(self) -> sqlite3.Connection:

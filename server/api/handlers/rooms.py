@@ -26,15 +26,12 @@ class RoomHandlers:
         room = self._service.create(
             room_id=body.get("id"),
             room_type=body.get("type"),
-            capacity=body.get("capacity"),
         )
         return ser.room(room)
 
     def patch(self, params: Params, query: Query, body: Body) -> dict[str, Any]:
         assert body is not None
         changes: dict[str, Any] = {}
-        if "capacity" in body:
-            changes["capacity"] = body["capacity"]
         if "type" in body:
             changes["type"] = body["type"]
         return ser.room(self._service.patch(params["id"], changes))

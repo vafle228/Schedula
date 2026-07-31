@@ -14,9 +14,7 @@ class Room:
     Attributes:
         id: Room number / identifier.
         type: Room kind, e.g. ``"Лекционная"`` or ``"Комп. класс"``.
-        capacity: Seating capacity.
     """
 
     id: str
     type: str
-    capacity: int
