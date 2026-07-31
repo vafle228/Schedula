@@ -49,17 +49,26 @@ for _mod in (
 _wv_datas, _wv_bins, _wv_hidden = collect_all("webview")
 hiddenimports += _wv_hidden
 
-# Бэкенды/зависимости pywebview на Windows (часть может отсутствовать — это ок).
-for _opt in ("comtypes", "clr", "webview.platforms.edgechromium",
-             "webview.platforms.mshtml", "webview.platforms.cef"):
-    hiddenimports.append(_opt)
+# Мы всегда запускаемся с gui="qt" (см. desktop/main.py) — это не зависит
+# от наличия Edge WebView2 на машине пользователя и одинаково работает
+# на Windows и Linux. webview.platforms.qt использует qtpy поверх PyQt6;
+# перечисляем только реально используемые Qt-модули (не весь PyQt6 —
+# иначе PyInstaller тащит Qt3D/Multimedia/Bluetooth/QML и т.п. и сборка
+# раздувается на сотни лишних МБ).
+hiddenimports += [
+    "webview.platforms.qt", "qtpy",
+    "PyQt6", "PyQt6.QtCore", "PyQt6.QtGui", "PyQt6.QtWidgets",
+    "PyQt6.QtNetwork", "PyQt6.QtWebChannel", "PyQt6.QtPrintSupport",
+    "PyQt6.QtWebEngineCore", "PyQt6.QtWebEngineWidgets",
+]
+_qt_datas, _qt_bins = [], []
 
 hiddenimports = sorted(set(hiddenimports))
 
 # ---------------------------------------------------------------------------
 # datas: раскладываем по ФИКСИРОВАННЫМ префиксам, под которые заточен paths.py
 # ---------------------------------------------------------------------------
-datas = list(_wv_datas)
+datas = list(_wv_datas) + list(_qt_datas)
 
 # Vue SPA -> 'client/dist' (mirrors resource_path() in desktop/main.py)
 if os.path.isdir(CLIENT_DIST):
@@ -92,7 +101,7 @@ if os.path.isfile(ENV_FILE):
 # ---------------------------------------------------------------------------
 # binaries: на всякий случай (sqlite3.dll и пр. PyInstaller обычно тащит сам)
 # ---------------------------------------------------------------------------
-binaries = list(_wv_bins)
+binaries = list(_wv_bins) + list(_qt_bins)
 
 # ===========================================================================
 a = Analysis(
@@ -107,9 +116,24 @@ a = Analysis(
     excludes=[
         # выкидываем тяжёлое/ненужное из client-тулчейна, если вдруг подтянется
         "tkinter", "unittest", "pytest",
-        # GUI-бэкенды pywebview, которые точно не используем на Windows:
-        "PyQt5", "PyQt6", "PySide2", "PySide6", "gi", "gtk",
-        "webview.platforms.qt", "qtpy",
+        # GUI-бэкенды pywebview, которые точно не используем (используем только PyQt6):
+        "PyQt5", "PySide2", "PySide6", "gi", "gtk",
+        # Модули PyQt6, которые webview.platforms.qt не использует:
+        "PyQt6.Qt3DAnimation", "PyQt6.Qt3DCore", "PyQt6.Qt3DExtras",
+        "PyQt6.Qt3DInput", "PyQt6.Qt3DLogic", "PyQt6.Qt3DRender",
+        "PyQt6.QtBluetooth", "PyQt6.QtCharts", "PyQt6.QtDataVisualization",
+        "PyQt6.QtDesigner", "PyQt6.QtGraphs", "PyQt6.QtGraphsWidgets",
+        "PyQt6.QtHelp", "PyQt6.QtMultimedia", "PyQt6.QtMultimediaWidgets",
+        "PyQt6.QtNetworkAuth", "PyQt6.QtNfc", "PyQt6.QtOpenGL",
+        "PyQt6.QtOpenGLWidgets", "PyQt6.QtPdf", "PyQt6.QtPdfWidgets",
+        "PyQt6.QtPositioning", "PyQt6.QtQml",
+        "PyQt6.QtQuick", "PyQt6.QtQuick3D", "PyQt6.QtQuickWidgets",
+        "PyQt6.QtRemoteObjects", "PyQt6.QtSensors", "PyQt6.QtSerialPort",
+        "PyQt6.QtSpatialAudio", "PyQt6.QtSql", "PyQt6.QtStateMachine",
+        "PyQt6.QtSvg", "PyQt6.QtSvgWidgets", "PyQt6.QtTest",
+        "PyQt6.QtTextToSpeech", "PyQt6.QtWebEngineQuick",
+        "PyQt6.QtWebSockets", "PyQt6.QtXml", "PyQt6.uic",
+        "PyQt6.QAxContainer", "PyQt6.Qsci",
     ],
     noarchive=False,
 )

@@ -48,4 +48,4 @@ if __name__ == "__main__":
         min_size=(1600, 800))
     js_api._window = window
 
-    webview.start(gui="edgechromium" if sys.platform == "win32" else "qt")
+    webview.start(gui="qt")
